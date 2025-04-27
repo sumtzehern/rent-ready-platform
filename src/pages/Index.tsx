@@ -1,5 +1,5 @@
 
-import { Redirect } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import LandingPage from "./LandingPage";
 
@@ -8,7 +8,7 @@ const Index = () => {
 
   // Redirect authenticated users to dashboard
   if (isAuthenticated) {
-    return <Redirect to="/dashboard" />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   // Show the landing page for unauthenticated users
