@@ -99,11 +99,11 @@ const Layout = () => {
             <div className="p-4 border-b">
               <div className="flex items-center space-x-3">
                 <div className="h-9 w-9 rounded-full bg-rental-100 flex items-center justify-center text-rental-700 font-medium">
-                  {user?.name.charAt(0).toUpperCase()}
+                  {user?.username ? user.username.charAt(0).toUpperCase() : '?'}
                 </div>
                 <div>
-                  <p className="font-medium">{user?.name}</p>
-                  <p className="text-xs text-gray-500 capitalize">{user?.role}</p>
+                  <p className="font-medium">{user?.username || 'User'}</p>
+                  <p className="text-xs text-gray-500 capitalize">{user?.mode || 'guest'}</p>
                 </div>
               </div>
             </div>

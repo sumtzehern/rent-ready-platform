@@ -1,15 +1,17 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/supabase';
+import { userService } from '@/services/userService';
 
 // Define user types
 export type UserRole = 'admin' | 'host' | 'guest';
 
 export interface User {
-  id: string;
+  username: string;
   email: string;
-  name: string;
-  role: UserRole;
+  name?: string;
+  mode: UserRole;
 }
 
 interface AuthContextType {
@@ -26,83 +28,85 @@ interface AuthContextType {
 // Create the context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock database for demo (would be replaced by actual API calls)
-const USERS_STORAGE_KEY = 'rental_users';
-
-// Initial admin user (this would normally be created via a secure process)
-const initialAdminUser = {
-  id: "admin-1",
-  email: "admin@example.com",
-  name: "Admin User",
-  role: "admin" as UserRole,
-  // In real app, we'd never store passwords like this - this is just for demo
-  password: "$2a$10$randomHashedPasswordString" // Simulating a hashed password
-};
-
 // Provider component
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Setup initial state on first load
+  // Setup initial state on first load - check for existing session
   useEffect(() => {
-    // Initialize users if they don't exist yet
-    const storedUsers = localStorage.getItem(USERS_STORAGE_KEY);
-    if (!storedUsers) {
-      const initialUsers = [
-        {
-          ...initialAdminUser,
-          password: "admin123" // Insecure, just for demo purposes
+    const checkSession = async () => {
+      try {
+        // Check for stored auth data first
+        const authData = userService.getAuthData();
+        
+        if (authData) {
+          // User has stored authentication data
+          const { userData } = authData;
+          
+          setUser({
+            username: userData.username,
+            email: userData.email,
+            mode: userData.mode as UserRole,
+          });
+        } else {
+          // Fall back to Supabase session
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (session) {
+            // Get user details from the user table
+            const userData = await userService.getByUsername(session.user.email || '');
+            
+            if (userData) {
+              setUser({
+                username: userData.username,
+                email: userData.email,
+                mode: userData.mode as UserRole,
+              });
+            }
+          }
         }
-      ];
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(initialUsers));
-    }
+      } catch (error) {
+        console.error('Error checking session:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    // Check for logged in user
-    const loggedInUser = localStorage.getItem('currentUser');
-    if (loggedInUser) {
-      setUser(JSON.parse(loggedInUser));
-    }
-    setIsLoading(false);
+    checkSession();
   }, []);
 
   // Login function
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate API request delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('Attempting login with email:', email);
       
-      // Get users from storage
-      const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-      const foundUser = users.find((u: any) => u.email === email);
+      // Get user from database
+      const userData = await userService.login(email, password);
+      console.log('Login response:', userData);
       
-      if (!foundUser) {
-        throw new Error('User not found');
+      if (!userData) {
+        console.error('No user data returned from login');
+        throw new Error('Invalid credentials - user not found');
       }
 
-      // In real app, we'd use bcrypt.compare or similar
-      if (foundUser.password !== password) { 
-        throw new Error('Invalid password');
-      }
-
-      // Create a safe user object without password
-      const safeUser = {
-        id: foundUser.id,
-        email: foundUser.email,
-        name: foundUser.name,
-        role: foundUser.role
+      // Store user in state
+      const loggedInUser = {
+        username: userData.username,
+        email: userData.email,
+        mode: userData.mode as UserRole
       };
 
-      // Store user in state and localStorage
-      setUser(safeUser);
-      localStorage.setItem('currentUser', JSON.stringify(safeUser));
+      console.log('Setting user state with:', loggedInUser);
+      setUser(loggedInUser);
       
       toast({
         title: "Logged in successfully",
-        description: `Welcome back, ${safeUser.name}!`,
+        description: `Welcome back, ${loggedInUser.username}!`,
       });
     } catch (error: any) {
+      console.error('Login error:', error);
       toast({
         title: "Login failed",
         description: error.message || "Please check your credentials",
@@ -118,40 +122,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (email: string, password: string, name: string) => {
     setIsLoading(true);
     try {
-      // Simulate API request delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Create the username from email (removing domain part)
+      const username = email.split('@')[0];
       
-      // Get existing users
-      const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
-      
-      // Check if user already exists
-      if (users.some((u: any) => u.email === email)) {
-        throw new Error('User already exists with this email');
-      }
-
       // Create new user (as a host by default)
       const newUser = {
-        id: `user-${Date.now()}`,
+        username,
         email,
-        name,
-        password, // In a real app, we would hash this
-        role: 'host' as UserRole
+        password,
+        mode: 'host' // Default role
       };
 
-      // Save to "database"
-      users.push(newUser);
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+      // Save to database
+      const userData = await userService.create(newUser);
 
-      // Log user in (without password in state)
-      const safeUser = { ...newUser };
-      delete (safeUser as any).password;
+      // Log user in
+      const registeredUser = {
+        username: userData.username,
+        email: userData.email,
+        mode: userData.mode as UserRole
+      };
 
-      setUser(safeUser);
-      localStorage.setItem('currentUser', JSON.stringify(safeUser));
+      setUser(registeredUser);
       
       toast({
         title: "Registration successful",
-        description: `Welcome, ${safeUser.name}!`,
+        description: `Welcome, ${registeredUser.username}!`,
       });
     } catch (error: any) {
       toast({
@@ -166,13 +162,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Logout function
-  const logout = () => {
-    localStorage.removeItem('currentUser');
-    setUser(null);
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out",
-    });
+  const logout = async () => {
+    try {
+      // Clear the auth token and user data from localStorage
+      userService.clearAuthData();
+      
+      // We're not using Supabase Auth anymore, so no need to sign out
+      
+      // Clear user state
+      setUser(null);
+      
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out",
+      });
+    } catch (error) {
+      console.error('Error during logout:', error);
+      toast({
+        title: "Logout failed",
+        description: "There was an error logging out",
+        variant: "destructive"
+      });
+    }
   };
 
   // Update user profile
@@ -180,23 +191,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return Promise.reject('No user logged in');
     
     try {
-      // Get existing users
-      const users = JSON.parse(localStorage.getItem(USERS_STORAGE_KEY) || '[]');
+      // Update user in database
+      await userService.update(user.username, data);
       
-      // Find and update the user
-      const updatedUsers = users.map((u: any) => {
-        if (u.id === user.id) {
-          return { ...u, ...data };
-        }
-        return u;
-      });
-      
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(updatedUsers));
-      
-      // Update current user
+      // Update current user state
       const updatedUser = { ...user, ...data };
       setUser(updatedUser);
-      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
       
       toast({
         title: "Profile updated",
@@ -216,7 +216,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check if current user is admin
   const checkIsAdmin = () => {
-    return user?.role === 'admin';
+    return user?.mode === 'admin';
   };
 
   // Context value

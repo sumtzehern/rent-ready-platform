@@ -1,4 +1,5 @@
 
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useListing } from "@/contexts/ListingContext";
@@ -9,8 +10,21 @@ import { PlusCircle, Home, List as ListIcon, User, BarChart3 } from "lucide-reac
 const Dashboard = () => {
   const { user } = useAuth();
   const { userListings, listings, getStatsData } = useListing();
+  const [stats, setStats] = useState({
+    totalListings: 0,
+    totalHosts: 0,
+    averagePrice: 0,
+    cityDistribution: {} as Record<string, number>
+  });
   
-  const stats = getStatsData();
+  useEffect(() => {
+    const loadStats = async () => {
+      const statsData = await getStatsData();
+      setStats(statsData);
+    };
+    
+    loadStats();
+  }, [getStatsData]);
 
   return (
     <div className="space-y-6">
@@ -63,7 +77,7 @@ const Dashboard = () => {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${stats.averagePrice.toFixed(2)}</div>
+            <div className="text-2xl font-bold">${stats.averagePrice ? stats.averagePrice.toFixed(2) : '0.00'}</div>
           </CardContent>
         </Card>
       </div>
@@ -85,23 +99,26 @@ const Dashboard = () => {
             ) : (
               <div className="space-y-4">
                 {userListings.slice(0, 3).map(listing => (
-                  <div key={listing.id} className="flex items-center gap-3 border rounded-md p-3">
+                  <div key={listing.listing_id} className="flex items-center gap-3 border rounded-md p-3">
                     <div className="h-12 w-12 rounded bg-gray-100 overflow-hidden">
-                      {listing.imageUrl ? (
-                        <img src={listing.imageUrl} alt={listing.title} className="h-full w-full object-cover" />
+                      {listing.photos && listing.photos.length > 0 ? (
+                        <img src={listing.photos[0].photo_url} alt={listing.description} className="h-full w-full object-cover" />
                       ) : (
                         <div className="h-full w-full bg-gray-200 flex items-center justify-center">
                           <Home className="h-6 w-6 text-gray-400" />
                         </div>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{listing.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {listing.city}, {listing.state}
+                    <div className="flex-1">
+                      <h4 className="font-medium">{listing.description.substring(0, 30)}...</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {listing.location ? `${listing.location.city}, ${listing.location.state}` : 'Location not available'}
                       </p>
                     </div>
-                    <div className="text-sm font-medium">${listing.price}/night</div>
+                    <div className="font-medium">${listing.price}</div>
+                    <Link to={`/listings/${listing.listing_id}`} className="text-sm text-blue-500 hover:underline">
+                      View
+                    </Link>
                   </div>
                 ))}
                 
@@ -145,7 +162,7 @@ const Dashboard = () => {
                     <div className="w-full bg-gray-200 rounded-full h-2.5">
                       <div 
                         className="bg-rental-500 h-2.5 rounded-full" 
-                        style={{ width: `${(count / listings.length) * 100}%` }}
+                        style={{ width: `${listings.length > 0 ? (count / listings.length) * 100 : 0}%` }}
                       ></div>
                     </div>
                   </div>

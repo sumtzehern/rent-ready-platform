@@ -27,19 +27,25 @@ const ListingsPage = () => {
   const { userListings, listings, deleteListing, isLoading } = useListing();
   const { user, checkIsAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
-  const [listingToDelete, setListingToDelete] = useState<string | null>(null);
+  const [listingToDelete, setListingToDelete] = useState<number | null>(null);
   
   const isAdmin = checkIsAdmin();
   const displayListings = isAdmin ? listings : userListings;
   
   // Filter listings based on search term
-  const filteredListings = displayListings.filter(listing => 
-    listing.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    listing.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    listing.city.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredListings = displayListings.filter(listing => {
+    const titleMatch = listing.title?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
+    const locationMatch = listing.location ? (
+      listing.location.street.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      listing.location.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      listing.location.state.toLowerCase().includes(searchTerm.toLowerCase())
+    ) : false;
+    const descriptionMatch = listing.description.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    return titleMatch || locationMatch || descriptionMatch;
+  });
 
-  const handleDeleteClick = (id: string) => {
+  const handleDeleteClick = (id: number) => {
     setListingToDelete(id);
   };
 
@@ -89,12 +95,12 @@ const ListingsPage = () => {
       ) : filteredListings.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredListings.map((listing) => (
-            <Card key={listing.id} className="overflow-hidden listing-card h-full">
+            <Card key={listing.listing_id} className="overflow-hidden listing-card h-full">
               <div className="relative h-48 w-full">
-                {listing.imageUrl ? (
+                {listing.photos && listing.photos.length > 0 ? (
                   <img 
-                    src={listing.imageUrl} 
-                    alt={listing.title} 
+                    src={listing.photos[0].photo_url} 
+                    alt={listing.title || 'Property'} 
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -108,27 +114,31 @@ const ListingsPage = () => {
               </div>
               <CardContent className="p-4 flex flex-col flex-1">
                 <div className="flex-1">
-                  <h3 className="font-semibold text-lg mb-1 line-clamp-1">{listing.title}</h3>
+                  <h3 className="font-semibold text-lg mb-1 line-clamp-1">{listing.title || 'Property Listing'}</h3>
                   <p className="text-sm text-gray-500 mb-2 line-clamp-1">
-                    {listing.address}, {listing.city}, {listing.state}
+                    {listing.location ? (
+                      <>
+                        {listing.location.street}, {listing.location.city}, {listing.location.state}
+                      </>
+                    ) : 'Location information unavailable'}
                   </p>
                   <p className="text-sm mb-4 line-clamp-2">{listing.description}</p>
                   <div className="text-sm text-gray-500 flex gap-3 mb-4">
-                    <span>{listing.bedrooms} {listing.bedrooms === 1 ? 'bed' : 'beds'}</span>
-                    <span>•</span>
-                    <span>{listing.bathrooms} {listing.bathrooms === 1 ? 'bath' : 'baths'}</span>
+                    {listing.location && (
+                      <span>{listing.location.number_of_rooms} {listing.location.number_of_rooms === 1 ? 'room' : 'rooms'}</span>
+                    )}
                   </div>
                 </div>
                 
                 <div className="flex gap-2 mt-auto pt-2 border-t">
-                  <Link to={`/listings/${listing.id}`} className="flex-1">
+                  <Link to={`/listings/${listing.listing_id}`} className="flex-1">
                     <Button variant="outline" size="sm" className="w-full">
                       View Details
                     </Button>
                   </Link>
-                  {(user?.id === listing.hostId || isAdmin) && (
+                  {(user?.username === listing.host_username || isAdmin) && (
                     <>
-                      <Link to={`/listings/edit/${listing.id}`}>
+                      <Link to={`/listings/edit/${listing.listing_id}`}>
                         <Button variant="ghost" size="sm" className="px-3">
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -137,7 +147,7 @@ const ListingsPage = () => {
                         variant="ghost" 
                         size="sm" 
                         className="px-3 text-red-500 hover:text-red-600 hover:bg-red-50"
-                        onClick={() => handleDeleteClick(listing.id)}
+                        onClick={() => handleDeleteClick(listing.listing_id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>

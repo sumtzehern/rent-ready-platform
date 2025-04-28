@@ -2,46 +2,52 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from './AuthContext';
+import { listingService, locationService, photoService } from '@/services';
 
 // Define listing types
 export interface Listing {
-  id: string;
-  title: string;
+  listing_id: number;
+  title?: string;
   description: string;
   price: number;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-  bedrooms: number;
-  bathrooms: number;
-  imageUrl: string;
-  hostId: string;
-  createdAt: string;
-  updatedAt: string;
+  contact_info: string;
+  host_username: string;
+  location_id: number;
+  location?: {
+    location_id?: number;
+    zip_code: string;
+    city: string;
+    state: string;
+    street: string;
+    number_of_rooms: number;
+  };
+  photos?: {
+    photo_id?: number;
+    photo_url: string;
+    f_listing_id: number;
+  }[];
 }
 
 interface ListingContextType {
   listings: Listing[];
   userListings: Listing[];
   isLoading: boolean;
-  getListing: (id: string) => Listing | undefined;
-  createListing: (listing: Omit<Listing, 'id' | 'hostId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-  updateListing: (id: string, listing: Partial<Listing>) => Promise<void>;
-  deleteListing: (id: string) => Promise<void>;
-  getStatsData: () => {
+  getListing: (id: number) => Promise<Listing | undefined>;
+  createListing: (listing: Omit<Listing, 'listing_id'>) => Promise<void>;
+  updateListing: (id: number, listing: Partial<Listing>) => Promise<void>;
+  deleteListing: (id: number) => Promise<void>;
+  getStatsData: () => Promise<{
     totalListings: number;
     totalHosts: number;
     averagePrice: number;
     cityDistribution: Record<string, number>;
-  };
+  }>;
 }
 
 // Create the context
 const ListingContext = createContext<ListingContextType | undefined>(undefined);
 
-// Storage key
-const LISTINGS_STORAGE_KEY = 'rental_listings';
+
 
 // Provider component
 export const ListingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -49,64 +55,48 @@ export const ListingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
 
-  // Load listings from storage on component mount
+  // Load listings from Supabase on component mount
   useEffect(() => {
-    const storedListings = localStorage.getItem(LISTINGS_STORAGE_KEY);
-    if (storedListings) {
-      setListings(JSON.parse(storedListings));
-    } else {
-      // Initialize with sample data if empty
-      const sampleListings = [
-        {
-          id: "listing-1",
-          title: "Cozy Downtown Apartment",
-          description: "A beautiful apartment in the heart of downtown with great views",
-          price: 120,
-          address: "123 Main St",
-          city: "New York",
-          state: "NY",
-          zipCode: "10001",
-          bedrooms: 2,
-          bathrooms: 1,
-          imageUrl: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8YXBhcnRtZW50fGVufDB8fDB8fHww&auto=format&fit=crop&w=600&q=60",
-          hostId: "admin-1",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        },
-        {
-          id: "listing-2",
-          title: "Luxury Beach House",
-          description: "Stunning beachfront property with private access to the shore",
-          price: 350,
-          address: "456 Ocean Dr",
-          city: "Miami",
-          state: "FL",
-          zipCode: "33139",
-          bedrooms: 4,
-          bathrooms: 3,
-          imageUrl: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fGhvdXNlfGVufDB8fDB8fHww&auto=format&fit=crop&w=600&q=60",
-          hostId: "admin-1",
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-      ];
-      
-      localStorage.setItem(LISTINGS_STORAGE_KEY, JSON.stringify(sampleListings));
-      setListings(sampleListings);
-    }
-    setIsLoading(false);
+    const fetchListings = async () => {
+      try {
+        setIsLoading(true);
+        const data = await listingService.getAllWithLocation();
+        setListings(data);
+      } catch (error) {
+        console.error('Error fetching listings:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load listings',
+          variant: 'destructive'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchListings();
   }, []);
 
   // Filter listings for the current user
-  const userListings = listings.filter(listing => listing.hostId === user?.id);
+  const userListings = listings.filter(listing => listing.host_username === user?.username);
 
   // Get a single listing by ID
-  const getListing = (id: string) => {
-    return listings.find(listing => listing.id === id);
+  const getListing = async (id: number) => {
+    try {
+      return await listingService.getById(id);
+    } catch (error) {
+      console.error('Error fetching listing:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load listing details',
+        variant: 'destructive'
+      });
+      return undefined;
+    }
   };
 
   // Create a new listing
-  const createListing = async (listingData: Omit<Listing, 'id' | 'hostId' | 'createdAt' | 'updatedAt'>) => {
+  const createListing = async (listingData: Omit<Listing, 'listing_id'>) => {
     if (!user) {
       toast({
         title: "Authentication required",
@@ -118,26 +108,49 @@ export const ListingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     setIsLoading(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Create location first if it doesn't exist
+      let locationId = listingData.location_id;
       
-      const newListing = {
-        ...listingData,
-        id: `listing-${Date.now()}`,
-        hostId: user.id,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      if (!locationId && listingData.location) {
+        const locationData = await locationService.create({
+          zip_code: listingData.location.zip_code,
+          city: listingData.location.city,
+          state: listingData.location.state,
+          street: listingData.location.street,
+          number_of_rooms: listingData.location.number_of_rooms
+        });
+        locationId = locationData.location_id;
+      }
       
-      const updatedListings = [...listings, newListing];
+      // Create the listing
+      const newListing = await listingService.create({
+        price: listingData.price,
+        description: listingData.description,
+        contact_info: listingData.contact_info,
+        host_username: user.username,
+        location_id: locationId || 0
+      });
+      
+      // Upload photos if provided
+      if (listingData.photos && listingData.photos.length > 0) {
+        for (const photo of listingData.photos) {
+          await photoService.create({
+            photo_url: photo.photo_url,
+            f_listing_id: newListing.listing_id
+          });
+        }
+      }
+      
+      // Refresh listings
+      const updatedListings = await listingService.getAllWithLocation();
       setListings(updatedListings);
-      localStorage.setItem(LISTINGS_STORAGE_KEY, JSON.stringify(updatedListings));
       
       toast({
         title: "Listing created",
         description: "Your property has been listed successfully"
       });
     } catch (error) {
+      console.error('Error creating listing:', error);
       toast({
         title: "Error",
         description: "Failed to create listing",
@@ -150,41 +163,50 @@ export const ListingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   // Update an existing listing
-  const updateListing = async (id: string, listingData: Partial<Listing>) => {
+  const updateListing = async (id: number, listingData: Partial<Listing>) => {
     setIsLoading(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const listing = listings.find(l => l.id === id);
+      // Get the current listing
+      const listing = await listingService.getById(id);
       
       if (!listing) {
         throw new Error("Listing not found");
       }
       
-      if (listing.hostId !== user?.id && user?.role !== 'admin') {
+      if (listing.host_username !== user?.username && user?.mode !== 'admin') {
         throw new Error("You don't have permission to update this listing");
       }
       
-      const updatedListings = listings.map(l => {
-        if (l.id === id) {
-          return {
-            ...l,
-            ...listingData,
-            updatedAt: new Date().toISOString()
-          };
-        }
-        return l;
-      });
+      // Update location if provided
+      if (listingData.location && listing.location_id) {
+        await locationService.update(listing.location_id, {
+          zip_code: listingData.location.zip_code,
+          city: listingData.location.city,
+          state: listingData.location.state,
+          street: listingData.location.street,
+          number_of_rooms: listingData.location.number_of_rooms
+        });
+      }
       
+      // Update the listing
+      const updatedListingData: Partial<Listing> = {
+        price: listingData.price,
+        description: listingData.description,
+        contact_info: listingData.contact_info,
+      };
+      
+      await listingService.update(id, updatedListingData);
+      
+      // Refresh listings
+      const updatedListings = await listingService.getAllWithLocation();
       setListings(updatedListings);
-      localStorage.setItem(LISTINGS_STORAGE_KEY, JSON.stringify(updatedListings));
       
       toast({
         title: "Listing updated",
         description: "Your property listing has been updated"
       });
     } catch (error: any) {
+      console.error('Error updating listing:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update listing",
@@ -197,31 +219,33 @@ export const ListingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   // Delete a listing
-  const deleteListing = async (id: string) => {
+  const deleteListing = async (id: number) => {
     setIsLoading(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const listing = listings.find(l => l.id === id);
+      // Get the current listing
+      const listing = await listingService.getById(id);
       
       if (!listing) {
         throw new Error("Listing not found");
       }
       
-      if (listing.hostId !== user?.id && user?.role !== 'admin') {
+      if (listing.host_username !== user?.username && user?.mode !== 'admin') {
         throw new Error("You don't have permission to delete this listing");
       }
       
-      const updatedListings = listings.filter(l => l.id !== id);
+      // Delete the listing
+      await listingService.delete(id);
+      
+      // Refresh listings
+      const updatedListings = await listingService.getAllWithLocation();
       setListings(updatedListings);
-      localStorage.setItem(LISTINGS_STORAGE_KEY, JSON.stringify(updatedListings));
       
       toast({
         title: "Listing deleted",
         description: "The property has been removed from listings"
       });
     } catch (error: any) {
+      console.error('Error deleting listing:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to delete listing",
@@ -234,27 +258,47 @@ export const ListingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   // Get statistics for reporting
-  const getStatsData = () => {
-    // Get unique host IDs
-    const hostIds = [...new Set(listings.map(listing => listing.hostId))];
-    
-    // Calculate average price
-    const totalPrice = listings.reduce((sum, listing) => sum + listing.price, 0);
-    const averagePrice = listings.length > 0 ? totalPrice / listings.length : 0;
-    
-    // Get distribution by city
-    const cityDistribution = listings.reduce<Record<string, number>>((acc, listing) => {
-      const city = listing.city;
-      acc[city] = (acc[city] || 0) + 1;
-      return acc;
-    }, {});
-    
-    return {
-      totalListings: listings.length,
-      totalHosts: hostIds.length,
-      averagePrice,
-      cityDistribution
-    };
+  const getStatsData = async () => {
+    try {
+      // Get all listings with location details
+      const allListings = await listingService.getAllWithLocation();
+      
+      // Get unique host usernames
+      const hostUsernames = [...new Set(allListings.map(listing => listing.host_username))];
+      
+      // Calculate average price
+      const totalPrice = allListings.reduce((sum, listing) => sum + listing.price, 0);
+      const averagePrice = allListings.length > 0 ? totalPrice / allListings.length : 0;
+      
+      // Get distribution by city
+      const cityDistribution = allListings.reduce<Record<string, number>>((acc, listing) => {
+        if (listing.location) {
+          const city = listing.location.city;
+          acc[city] = (acc[city] || 0) + 1;
+        }
+        return acc;
+      }, {});
+      
+      return {
+        totalListings: allListings.length,
+        totalHosts: hostUsernames.length,
+        averagePrice,
+        cityDistribution
+      };
+    } catch (error) {
+      console.error('Error getting stats data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load statistics',
+        variant: 'destructive'
+      });
+      return {
+        totalListings: 0,
+        totalHosts: 0,
+        averagePrice: 0,
+        cityDistribution: {}
+      };
+    }
   };
 
   // Context value

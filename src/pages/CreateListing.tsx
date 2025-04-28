@@ -17,20 +17,20 @@ const CreateListing = () => {
     title: "",
     description: "",
     price: 0,
-    address: "",
+    contact_info: "",
+    street: "",
     city: "",
     state: "",
-    zipCode: "",
-    bedrooms: 1,
-    bathrooms: 1,
-    imageUrl: ""
+    zip_code: "",
+    number_of_rooms: 1,
+    photo_url: ""
   });
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: name === "price" || name === "bedrooms" || name === "bathrooms" 
+      [name]: name === "price" || name === "number_of_rooms" 
         ? Number(value) 
         : value
     });
@@ -40,7 +40,39 @@ const CreateListing = () => {
     e.preventDefault();
     
     try {
-      await createListing(formData);
+      // Format the data to match the Supabase schema
+      const listingData = {
+        title: formData.title,
+        description: formData.description,
+        price: formData.price,
+        contact_info: formData.contact_info,
+        host_username: '', // This will be set by the service using the current user
+        location_id: 0 // This will be set by the service
+      };
+      
+      // Create a separate location object
+      const locationData = {
+        zip_code: formData.zip_code,
+        city: formData.city,
+        state: formData.state,
+        street: formData.street,
+        number_of_rooms: formData.number_of_rooms
+      };
+      
+      // Create a separate photos array
+      const photos = formData.photo_url ? [
+        {
+          photo_url: formData.photo_url,
+          f_listing_id: 0 // This will be set by the service
+        }
+      ] : [];
+      
+      // Pass the listing data with location and photos to the context
+      await createListing({
+        ...listingData,
+        location: locationData,
+        photos: photos
+      });
       navigate("/listings");
     } catch (error) {
       // Error is handled in the context
@@ -108,25 +140,25 @@ const CreateListing = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="imageUrl">Image URL</Label>
+                  <Label htmlFor="photo_url">Image URL</Label>
                   <Input
-                    id="imageUrl"
-                    name="imageUrl"
+                    id="photo_url"
+                    name="photo_url"
                     type="url"
                     placeholder="https://example.com/image.jpg"
-                    value={formData.imageUrl}
+                    value={formData.photo_url}
                     onChange={handleChange}
                   />
                 </div>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="address">Street Address</Label>
+                <Label htmlFor="street">Street Address</Label>
                 <Input
-                  id="address"
-                  name="address"
+                  id="street"
+                  name="street"
                   placeholder="123 Main St"
-                  value={formData.address}
+                  value={formData.street}
                   onChange={handleChange}
                   required
                 />
@@ -158,12 +190,12 @@ const CreateListing = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="zipCode">ZIP Code</Label>
+                  <Label htmlFor="zip_code">ZIP Code</Label>
                   <Input
-                    id="zipCode"
-                    name="zipCode"
+                    id="zip_code"
+                    name="zip_code"
                     placeholder="ZIP Code"
-                    value={formData.zipCode}
+                    value={formData.zip_code}
                     onChange={handleChange}
                     required
                   />
@@ -172,27 +204,25 @@ const CreateListing = () => {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="bedrooms">Bedrooms</Label>
+                  <Label htmlFor="number_of_rooms">Number of Rooms</Label>
                   <Input
-                    id="bedrooms"
-                    name="bedrooms"
+                    id="number_of_rooms"
+                    name="number_of_rooms"
                     type="number"
                     min="0"
-                    value={formData.bedrooms}
+                    value={formData.number_of_rooms}
                     onChange={handleChange}
                     required
                   />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="bathrooms">Bathrooms</Label>
+                  <Label htmlFor="contact_info">Contact Information</Label>
                   <Input
-                    id="bathrooms"
-                    name="bathrooms"
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={formData.bathrooms}
+                    id="contact_info"
+                    name="contact_info"
+                    placeholder="Phone or email for inquiries"
+                    value={formData.contact_info}
                     onChange={handleChange}
                     required
                   />

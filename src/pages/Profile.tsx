@@ -14,7 +14,7 @@ const Profile = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [formData, setFormData] = useState({
-    name: user?.name || "",
+    username: user?.username || "",
     email: user?.email || "",
     currentPassword: "",
     newPassword: "",
@@ -70,7 +70,7 @@ const Profile = () => {
       // This is a simplified version - in a real app, we'd handle password changes separately
       // and would properly verify the current password before allowing changes
       await updateUserProfile({
-        name: formData.name,
+        username: formData.username,
         email: formData.email
       });
       
@@ -107,11 +107,11 @@ const Profile = () => {
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Name</Label>
+                    <Label htmlFor="username">Username</Label>
                     <Input
-                      id="name"
-                      name="name"
-                      value={formData.name}
+                      id="username"
+                      name="username"
+                      value={formData.username}
                       onChange={handleChange}
                       required
                     />
@@ -187,24 +187,24 @@ const Profile = () => {
               <CardTitle>Account Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-full bg-rental-100 flex items-center justify-center text-rental-700 text-xl font-medium">
-                  {user.name.charAt(0).toUpperCase()}
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="h-16 w-16 rounded-full bg-rental-100 flex items-center justify-center text-2xl text-rental-700 font-medium">
+                  {user.username ? user.username.charAt(0).toUpperCase() : '?'}
                 </div>
                 <div>
-                  <p className="font-medium text-lg">{user.name}</p>
+                  <h3 className="text-xl font-semibold">{user.username || 'User'}</h3>
+                  <p className="text-sm text-gray-500 capitalize">{user.mode || 'guest'}</p>
                   <p className="text-sm text-gray-500">{user.email}</p>
                 </div>
               </div>
-              
               <div className="border-t border-b py-4 space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">User ID:</span>
-                  <span className="font-mono text-sm">{user.id.substring(0, 8)}...</span>
+                  <span className="text-gray-500">Username:</span>
+                  <span className="font-mono text-sm">{user.username}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Role:</span>
-                  <span className="capitalize">{user.role}</span>
+                  <span className="capitalize">{user.mode}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Listings:</span>
