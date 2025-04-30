@@ -1,9 +1,8 @@
 import { supabase } from '../lib/supabase';
 
 export interface Availability {
-  availability_id: number;
-  listing_id: number;
-  date: string;
+  availability: string; 
+  f_listing_id: number; 
 }
 
 export const availabilityService = {
@@ -22,14 +21,14 @@ export const availabilityService = {
     const { data, error } = await supabase
       .from('availability')
       .select('*')
-      .eq('listing_id', listingId);
+      .eq('f_listing_id', listingId); 
     
     if (error) throw error;
     return data;
   },
 
   // Create a new availability record
-  async create(availability: Omit<Availability, 'availability_id'>) {
+  async create(availability: Availability) { 
     const { data, error } = await supabase
       .from('availability')
       .insert([availability])
@@ -40,11 +39,12 @@ export const availabilityService = {
   },
 
   // Update an availability record
-  async update(availabilityId: number, updates: Partial<Availability>) {
+  async update(date: string, listingId: number, updates: Partial<Availability>) { 
     const { data, error } = await supabase
       .from('availability')
       .update(updates)
-      .eq('availability_id', availabilityId)
+      .eq('availability', date) 
+      .eq('f_listing_id', listingId) 
       .select();
     
     if (error) throw error;
@@ -52,11 +52,12 @@ export const availabilityService = {
   },
 
   // Delete an availability record
-  async delete(availabilityId: number) {
+  async delete(date: string, listingId: number) { 
     const { error } = await supabase
       .from('availability')
       .delete()
-      .eq('availability_id', availabilityId);
+      .eq('availability', date) 
+      .eq('f_listing_id', listingId); 
     
     if (error) throw error;
     return true;
@@ -67,8 +68,8 @@ export const availabilityService = {
     const { data, error } = await supabase
       .from('availability')
       .select('*')
-      .eq('listing_id', listingId)
-      .eq('date', date);
+      .eq('f_listing_id', listingId) 
+      .eq('availability', date); 
     
     if (error) throw error;
     return data.length > 0;
@@ -77,8 +78,8 @@ export const availabilityService = {
   // Add multiple availability dates for a listing
   async addMultipleDates(listingId: number, dates: string[]) {
     const records = dates.map(date => ({
-      listing_id: listingId,
-      date
+      f_listing_id: listingId, 
+      availability: date 
     }));
 
     const { data, error } = await supabase

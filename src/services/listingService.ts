@@ -45,11 +45,12 @@ export const listingService = {
 
   // Get listings with location details
   async getAllWithLocation() {
+    // Using the correct foreign key constraints from the schema
     const { data, error } = await supabase
       .from('listing')
       .select(`
         *,
-        locations!listing_location_fk(*)
+        locations(*) 
       `);
     
     if (error) throw error;
@@ -58,12 +59,16 @@ export const listingService = {
 
   // Create a new listing
   async create(listing: Omit<Listing, 'listing_id'>) {
+    console.log('Creating listing:', listing);
     const { data, error } = await supabase
       .from('listing')
       .insert([listing])
       .select();
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error creating listing:', error);
+      throw error;
+    }
     return data[0];
   },
 
@@ -96,7 +101,7 @@ export const listingService = {
       .from('listing')
       .select(`
         *,
-        locations!listing_location_fk(*)
+        locations(*) 
       `)
       .eq('locations.city', city)
       .eq('locations.state', state);
@@ -107,6 +112,7 @@ export const listingService = {
 
   // Get listings with photos
   async getListingsWithPhotos() {
+    // Using the correct foreign key from the schema
     const { data, error } = await supabase
       .from('listing')
       .select(`

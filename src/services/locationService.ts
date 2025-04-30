@@ -2,11 +2,12 @@ import { supabase } from '../lib/supabase';
 
 export interface Location {
   location_id: number;
-  zip_code: string;
+  zip_code: number;
   city: string;
   state: string;
   street: string;
-  number_of_rooms: number;
+  number_of_listings: number;
+  loc_type: string;
 }
 
 export const locationService = {
@@ -34,12 +35,16 @@ export const locationService = {
 
   // Create a new location
   async create(location: Omit<Location, 'location_id'>) {
+    console.log('Creating location:', location);
     const { data, error } = await supabase
       .from('locations')
       .insert([location])
       .select();
     
-    if (error) throw error;
+    if (error) {
+      console.error('Error creating location:', error);
+      throw error;
+    }
     return data[0];
   },
 
@@ -79,7 +84,7 @@ export const locationService = {
   },
 
   // Search locations by zip code
-  async searchByZipCode(zipCode: string) {
+  async searchByZipCode(zipCode: number) {
     const { data, error } = await supabase
       .from('locations')
       .select('*')

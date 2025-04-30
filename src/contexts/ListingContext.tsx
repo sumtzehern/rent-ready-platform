@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/components/ui/use-toast';
 import { useAuth } from './AuthContext';
@@ -46,8 +45,6 @@ interface ListingContextType {
 
 // Create the context
 const ListingContext = createContext<ListingContextType | undefined>(undefined);
-
-
 
 // Provider component
 export const ListingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -112,12 +109,14 @@ export const ListingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       let locationId = listingData.location_id;
       
       if (!locationId && listingData.location) {
+        // Map the location to match the schema structure
         const locationData = await locationService.create({
-          zip_code: listingData.location.zip_code,
+          zip_code: parseInt(listingData.location.zip_code), // Convert to number to match schema
           city: listingData.location.city,
           state: listingData.location.state,
           street: listingData.location.street,
-          number_of_rooms: listingData.location.number_of_rooms
+          number_of_listings: 1, // Default value for a new location
+          loc_type: 'residential' // Default value
         });
         locationId = locationData.location_id;
       }
@@ -136,7 +135,7 @@ export const ListingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         for (const photo of listingData.photos) {
           await photoService.create({
             photo_url: photo.photo_url,
-            f_listing_id: newListing.listing_id
+            f_listing_id: newListing.listing_id // Match the schema column name
           });
         }
       }
@@ -164,28 +163,57 @@ export const ListingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Update an existing listing
   const updateListing = async (id: number, listingData: Partial<Listing>) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "You must be logged in to update a listing",
+        variant: "destructive"
+      });
+      return Promise.reject("Not authenticated");
+    }
+    
     setIsLoading(true);
     try {
-      // Get the current listing
-      const listing = await listingService.getById(id);
+      // First get the current listing
+      const currentListing = await listingService.getById(id);
       
-      if (!listing) {
+      if (!currentListing) {
         throw new Error("Listing not found");
       }
       
-      if (listing.host_username !== user?.username && user?.mode !== 'admin') {
+      // Check that user is owner or admin
+      if (currentListing.host_username !== user.username && user.mode !== 'admin') {
         throw new Error("You don't have permission to update this listing");
       }
       
-      // Update location if provided
-      if (listingData.location && listing.location_id) {
-        await locationService.update(listing.location_id, {
-          zip_code: listingData.location.zip_code,
-          city: listingData.location.city,
-          state: listingData.location.state,
-          street: listingData.location.street,
-          number_of_rooms: listingData.location.number_of_rooms
-        });
+      // Update location if needed
+      if (listingData.location) {
+        // If location exists, update it
+        if (currentListing.location_id) {
+          await locationService.update(currentListing.location_id, {
+            zip_code: parseInt(listingData.location.zip_code), // Convert to number to match schema
+            city: listingData.location.city,
+            state: listingData.location.state,
+            street: listingData.location.street,
+            number_of_listings: 1, // Maintain the same count
+            loc_type: 'residential' // Maintain the same type
+          });
+        } else {
+          // If location doesn't exist, create it
+          const locationData = await locationService.create({
+            zip_code: parseInt(listingData.location.zip_code), // Convert to number to match schema
+            city: listingData.location.city,
+            state: listingData.location.state,
+            street: listingData.location.street,
+            number_of_listings: 1,
+            loc_type: 'residential'
+          });
+          
+          // Update the listing with the new location ID
+          await listingService.update(id, {
+            location_id: locationData.location_id
+          });
+        }
       }
       
       // Update the listing
