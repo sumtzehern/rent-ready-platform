@@ -28,9 +28,10 @@ const ListingsPage = () => {
   const { user, checkIsAdmin } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [listingToDelete, setListingToDelete] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<'my' | 'all'>('my');
   
   const isAdmin = checkIsAdmin();
-  const displayListings = isAdmin ? listings : userListings;
+  const displayListings = activeTab === 'my' ? userListings : listings;
   
   // Filter listings based on search term
   const filteredListings = displayListings.filter(listing => {
@@ -68,9 +69,27 @@ const ListingsPage = () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold tracking-tight">
-          {isAdmin ? "All Listings" : "My Listings"}
-        </h1>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <h1 className="text-2xl font-bold tracking-tight">
+            Listings
+          </h1>
+          <div className="flex border rounded-md overflow-hidden">
+            <Button 
+              variant={activeTab === 'my' ? "default" : "ghost"}
+              className={`rounded-none ${activeTab === 'my' ? '' : 'hover:bg-gray-100 text-gray-700'}`}
+              onClick={() => setActiveTab('my')}
+            >
+              My Listings
+            </Button>
+            <Button 
+              variant={activeTab === 'all' ? "default" : "ghost"}
+              className={`rounded-none ${activeTab === 'all' ? '' : 'hover:bg-gray-100 text-gray-700'}`}
+              onClick={() => setActiveTab('all')}
+            >
+              All Listings
+            </Button>
+          </div>
+        </div>
         <Link to="/listings/create">
           <Button>
             <PlusCircle className="mr-2 h-4 w-4" />
@@ -176,7 +195,9 @@ const ListingsPage = () => {
           <p className="text-muted-foreground mb-6">
             {searchTerm 
               ? "No listings match your search criteria." 
-              : "You haven't created any listings yet."}
+              : activeTab === 'my' 
+                ? "You haven't created any listings yet." 
+                : "There are no listings available."}
           </p>
           <Link to="/listings/create">
             <Button>
