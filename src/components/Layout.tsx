@@ -1,7 +1,6 @@
-
 import { useState } from "react";
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, UserRole } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   Home,
@@ -13,7 +12,8 @@ import {
   X,
   BarChart3,
   Shield,
-  MessageSquare
+  MessageSquare,
+  Bookmark
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ListingProvider } from "@/contexts/ListingContext";
@@ -31,57 +31,81 @@ const Layout = () => {
     navigate("/login");
   };
 
-  const menuItems = [
+  interface MenuItem {
+    name: string;
+    path: string;
+    icon: JSX.Element;
+    modes: ReadonlyArray<UserRole>; 
+  }
+
+  const menuItems: MenuItem[] = [
     {
       name: "Dashboard",
       path: "/dashboard",
-      icon: <Home className="mr-2 h-4 w-4" />
+      icon: <Home className="mr-2 h-4 w-4" />,
+      modes: ['guest', 'host', 'admin'] 
+    },
+    {
+      name: "Saved Listings",
+      path: "/saved-listings",
+      icon: <Bookmark className="mr-2 h-4 w-4" />,
+      modes: ['guest']
     },
     {
       name: "My Listings",
-      path: "/listings",
-      icon: <List className="mr-2 h-4 w-4" />
+      path: "/listings", 
+      icon: <List className="mr-2 h-4 w-4" />,
+      modes: ['host'] 
     },
     {
       name: "Add Listing",
       path: "/listings/create",
-      icon: <PlusCircle className="mr-2 h-4 w-4" />
+      icon: <PlusCircle className="mr-2 h-4 w-4" />,
+      modes: ['host'] 
+    },
+    {
+      name: "All Listings",
+      path: "/listings/all", 
+      icon: <List className="mr-2 h-4 w-4" />,
+      modes: ['guest', 'host', 'admin'] 
     },
     {
       name: "Reports",
       path: "/reports",
-      icon: <BarChart3 className="mr-2 h-4 w-4" />
+      icon: <BarChart3 className="mr-2 h-4 w-4" />,
+      modes: ['host', 'admin'] 
     },
     {
       name: "Messages",
       path: "/messages",
-      icon: <MessageSquare className="mr-2 h-4 w-4" />
-    },
-    {
-      name: "All Listings",
-      path: "/listings/all",
-      icon: <List className="mr-2 h-4 w-4" />
+      icon: <MessageSquare className="mr-2 h-4 w-4" />,
+      modes: ['guest', 'host', 'admin'] 
     },
     {
       name: "Profile",
       path: "/profile",
-      icon: <User className="mr-2 h-4 w-4" />
+      icon: <User className="mr-2 h-4 w-4" />,
+      modes: ['guest', 'host', 'admin'] 
     }
   ];
 
-  // Add admin menu item if user is admin
+  const currentUserMode = user?.mode || 'guest'; 
+  const accessibleMenuItems = menuItems.filter(item => 
+    (item.modes as UserRole[]).includes(currentUserMode) 
+  );
+
   if (isAdmin) {
-    menuItems.push({
+    accessibleMenuItems.push({
       name: "Admin Dashboard",
       path: "/admin",
-      icon: <Shield className="mr-2 h-4 w-4" />
+      icon: <Shield className="mr-2 h-4 w-4" />,
+      modes: ['admin'] 
     });
   }
 
   return (
     <ListingProvider>
       <div className="flex min-h-screen bg-gray-50">
-        {/* Sidebar Toggle Button (Mobile) */}
         <button
           className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-md bg-white shadow-md"
           onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -93,7 +117,6 @@ const Layout = () => {
           )}
         </button>
 
-        {/* Sidebar */}
         <div
           className={cn(
             "fixed inset-y-0 left-0 z-40 w-64 transform bg-white shadow-lg transition-transform duration-200 ease-in-out lg:translate-x-0",
@@ -120,7 +143,7 @@ const Layout = () => {
             </div>
             
             <nav className="flex-grow p-4 space-y-1 overflow-y-auto">
-              {menuItems.map((item) => (
+              {accessibleMenuItems.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
@@ -150,7 +173,6 @@ const Layout = () => {
           </div>
         </div>
 
-        {/* Main Content */}
         <div className={cn(
           "flex-1 transition-all duration-200 ease-in-out",
           sidebarOpen ? "lg:ml-64" : "ml-0"

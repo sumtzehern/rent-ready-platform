@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,6 +21,7 @@ import Profile from "./pages/Profile";
 import ReportingPage from "./pages/ReportingPage";
 import MessagePage from "./pages/Message";
 import AllListing from "./pages/AllListing";
+import SavedListingsPage from "./pages/SavedListings";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +45,7 @@ const App = () => (
                 <Route path="/listings/create" element={<CreateListing />} />
                 <Route path="/listings/edit/:id" element={<EditListing />} />
                 <Route path="/listings/all" element={<AllListing />} />
+                <Route path="/saved-listings" element={<SavedListingsPage />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/reports" element={<ReportingPage />} />
                 <Route path="/messages/:receiverId?" element={<MessagePage />} />
