@@ -19,7 +19,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  register: (email: string, password: string, name: string, mode: UserRole) => Promise<void>;
   logout: () => void;
   updateUserProfile: (data: Partial<User>) => Promise<void>;
   checkIsAdmin: () => boolean;
@@ -119,18 +119,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Register function
-  const register = async (email: string, password: string, name: string) => {
+  const register = async (email: string, password: string, name: string, mode: UserRole) => {
     setIsLoading(true);
     try {
       // Create the username from email (removing domain part)
       const username = email.split('@')[0];
       
-      // Create new user (as a host by default)
+      // Create new user with selected mode
       const newUser = {
         username,
         email,
         password,
-        mode: 'guest' // Default role
+        mode // Use the selected mode from registration
       };
 
       // Save to database

@@ -7,12 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 const Register = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [mode, setMode] = useState("guest");
   const [passwordError, setPasswordError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -44,7 +46,7 @@ const Register = () => {
     setIsSubmitting(true);
     
     try {
-      await register(email, password, name);
+      await register(email, password, name, mode as 'guest' | 'host');
       navigate("/dashboard");
     } catch (error) {
       // Error is handled in the auth context
@@ -75,6 +77,18 @@ const Register = () => {
                   onChange={(e) => setName(e.target.value)}
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="mode">Account Type</Label>
+                <Select value={mode} onValueChange={setMode}>
+                  <SelectTrigger id="mode" className="w-full" aria-label="Account Type">
+                    <SelectValue placeholder="Select account type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="guest">Guest</SelectItem>
+                    <SelectItem value="host">Host</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
