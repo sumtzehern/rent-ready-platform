@@ -20,6 +20,7 @@ import EditListing from "./pages/EditListing";
 import AdminDashboard from "./pages/AdminDashboard";
 import Profile from "./pages/Profile";
 import ReportingPage from "./pages/ReportingPage";
+import MessagePage from "./pages/Message";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ const App = () => (
                 <Route path="/listings/edit/:id" element={<EditListing />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/reports" element={<ReportingPage />} />
+                <Route path="/messages/:receiverId?" element={<MessagePage />} />
                 <Route path="/admin" element={<AdminDashboard />} />
               </Route>
             </Route>

@@ -52,6 +52,11 @@ const Layout = () => {
       icon: <BarChart3 className="mr-2 h-4 w-4" />
     },
     {
+      name: "Messages",
+      path: "/messages",
+      icon: <BarChart3 className="mr-2 h-4 w-4" />
+    },
+    {
       name: "Profile",
       path: "/profile",
       icon: <User className="mr-2 h-4 w-4" />
