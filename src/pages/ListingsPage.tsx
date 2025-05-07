@@ -143,7 +143,6 @@ const ListingsPage = () => {
                       /* @ts-ignore - This is a fallback for data that might come in a different format */
                       listing.locations ? (
                         <>
-                          {/* @ts-ignore */}
                           {listing.locations.street}, {listing.locations.city}, {listing.locations.state}
                         </>
                       ) : 'Location information unavailable'
@@ -151,10 +150,10 @@ const ListingsPage = () => {
                   </p>
                   <p className="text-sm mb-4 line-clamp-2">{listing.description}</p>
                   <div className="text-sm text-gray-500 flex gap-3 mb-4">
-                    {(listing.location || /* @ts-ignore */ listing.locations) && (
+                    {(listing.location || listing.locations) && (
                       <span>
-                        {listing.location?.number_of_rooms || /* @ts-ignore */ listing.locations?.number_of_rooms} 
-                        {(listing.location?.number_of_rooms === 1 || /* @ts-ignore */ listing.locations?.number_of_rooms === 1) 
+                        {listing.location?.number_of_rooms || listing.locations?.number_of_rooms} 
+                        {(listing.location?.number_of_rooms === 1 || listing.locations?.number_of_rooms === 1) 
                           ? 'room' : 'rooms'}
                       </span>
                     )}

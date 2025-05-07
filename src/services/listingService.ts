@@ -135,9 +135,25 @@ export const listingService = {
       
       // Map photos to their respective listings
       const enhancedData = listingsData.map(listing => {
+<<<<<<< HEAD
         const listingPhotos: Photo[] = photosData ? photosData
           .filter(photo => photo.f_location_id === listing.location_id)
           .map(photo => ({
+=======
+        const listingPhotos = photosData.filter(photo => 
+          // In your schema, photos are linked to listings via f_location_id
+          photo.f_location_id === listing.location_id
+        );
+        
+        // Ensure location property is always available for consistency
+        // This matches the database structure mentioned in the requirements
+        // where data can come as either 'location' or 'locations'
+        return {
+          ...listing,
+          // If locations exists from the join query, copy it to location property as well
+          location: listing.locations || null,
+          photos: listingPhotos.length > 0 ? listingPhotos.map(photo => ({
+>>>>>>> d517ec51b08f4fbeaebdaf97b6dafbad4b0d4628
             photo_id: photo.photoid,
             photoid: photo.photoid,
             photo_url: photo.photo_url,
