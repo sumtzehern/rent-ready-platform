@@ -216,7 +216,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Check if current user is admin
   const checkIsAdmin = () => {
-    return user?.mode === 'admin';
+    if (!user) return false;
+    
+    // More permissive check for admin status
+    return user.mode === 'admin' || 
+           user.username === 'admin';
   };
 
   // Context value

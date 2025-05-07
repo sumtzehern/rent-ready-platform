@@ -1,195 +1,189 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useListing } from "@/contexts/ListingContext";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, User, Home, AlertTriangle, Loader2 } from "lucide-react";
+import { Shield, User, AlertTriangle, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 
 interface StoredUser {
   id: string;
   name: string;
   email: string;
-  role: string;
+  mode: string; // Changed from role to mode
+  username: string;
   password: string;
 }
 
 const AdminDashboard = () => {
-  const { user: currentUser, checkIsAdmin } = useAuth();
+  const { user: currentUser } = useAuth();
   const { listings } = useListing();
   const navigate = useNavigate();
-  
   const [users, setUsers] = useState<StoredUser[]>([]);
   const [newUser, setNewUser] = useState({
     name: "",
     email: "",
     password: "",
-    role: "host"
+    mode: "host",
   });
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Redirect if not admin
+
   useEffect(() => {
-    if (!checkIsAdmin()) {
+    const isAdmin =
+      currentUser?.mode === "admin" || currentUser?.username === "admin";
+    if (!isAdmin) {
       toast({
         title: "Access denied",
         description: "You must be an admin to view this page.",
-        variant: "destructive"
+        variant: "destructive",
       });
       navigate("/dashboard");
     }
-  }, [checkIsAdmin, navigate]);
-  
-  // Load users from storage
+  }, [currentUser, navigate]);
+
   useEffect(() => {
-    const storedUsers = localStorage.getItem('rental_users');
-    if (storedUsers) {
-      setUsers(JSON.parse(storedUsers));
-    }
+    fetchUsers();
   }, []);
-  
-  // Filter users based on search term
-  const filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.role.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
-  // Handle form input changes
+
+  const fetchUsers = async () => {
+    const { data, error } = await supabase.from("user").select("*");
+    if (error) {
+      toast({
+        title: "Error fetching users",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      setUsers(data || []);
+    }
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setNewUser(prev => ({ ...prev, [name]: value }));
+    setNewUser((prev) => ({ ...prev, [name]: value }));
   };
-  
-  // Handle role selection
-  const handleRoleChange = (value: string) => {
-    setNewUser(prev => ({ ...prev, role: value }));
+
+  const handleModeChange = (mode: string) => { // Changed from handleRoleChange
+    setNewUser((prev) => ({ ...prev, mode }));
   };
-  
-  // Create new admin user
+
   const handleCreateAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (newUser.password.length < 6) {
-      toast({
+      return toast({
         title: "Invalid password",
-        description: "Password must be at least 6 characters long.",
-        variant: "destructive"
+        description: "Minimum 6 characters.",
+        variant: "destructive",
       });
-      return;
     }
-    
     setIsLoading(true);
-    
     try {
-      // Check if user already exists
-      if (users.some(user => user.email === newUser.email)) {
-        throw new Error("A user with this email already exists");
-      }
-      
-      // Create new user
-      const newUserData = {
-        id: `user-${Date.now()}`,
-        ...newUser
-      };
-      
-      const updatedUsers = [...users, newUserData];
-      localStorage.setItem('rental_users', JSON.stringify(updatedUsers));
-      setUsers(updatedUsers);
-      
-      // Reset form
-      setNewUser({
-        name: "",
-        email: "",
-        password: "",
-        role: "host"
-      });
-      
+      const { data: existingUsers, error: checkError } = await supabase
+        .from("user")
+        .select("email")
+        .eq("email", newUser.email);
+      if (existingUsers?.length) throw new Error("Email already exists");
+
+      const { error } = await supabase.from("user").insert([
+        {
+          ...newUser,
+          id: `user-${Date.now()}`,
+          username: newUser.email.split("@")[0],
+        },
+      ]);
+
+      if (error) throw error;
+
+      setNewUser({ name: "", email: "", password: "", mode: "host" }); // Changed from role to mode
       toast({
         title: "User created",
-        description: `New ${newUser.role} user has been created successfully.`
+        description: `New ${newUser.mode} added.`, // Changed from role to mode
       });
+      fetchUsers();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to create user",
-        variant: "destructive"
+        description: error.message,
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
-  
-  // Delete user
-  const handleDeleteUser = (userId: string) => {
-    // Prevent deleting self
-    if (userId === currentUser?.id) {
-      toast({
-        title: "Cannot delete account",
-        description: "You cannot delete your own account.",
-        variant: "destructive"
+
+  const handleDeleteUser = async (userId: string) => {
+    if (userId === currentUser?.id)
+      return toast({
+        title: "Error",
+        description: "Can't delete self.",
+        variant: "destructive",
       });
-      return;
-    }
-    
-    const updatedUsers = users.filter(user => user.id !== userId);
-    localStorage.setItem('rental_users', JSON.stringify(updatedUsers));
-    setUsers(updatedUsers);
-    
-    toast({
-      title: "User deleted",
-      description: "User has been removed successfully."
-    });
-  };
-  
-  // Toggle user role
-  const toggleUserRole = (userId: string, newRole: string) => {
-    // Prevent changing own role
-    if (userId === currentUser?.id) {
+
+    const { error } = await supabase.from("user").delete().eq("id", userId);
+    if (error) {
       toast({
-        title: "Cannot change role",
-        description: "You cannot change your own role.",
-        variant: "destructive"
+        title: "Error deleting user",
+        description: error.message,
+        variant: "destructive",
       });
-      return;
+    } else {
+      toast({ title: "User deleted" });
+      fetchUsers();
     }
-    
-    const updatedUsers = users.map(user => {
-      if (user.id === userId) {
-        return { ...user, role: newRole };
-      }
-      return user;
-    });
-    
-    localStorage.setItem('rental_users', JSON.stringify(updatedUsers));
-    setUsers(updatedUsers);
-    
-    toast({
-      title: "Role updated",
-      description: `User role has been updated to ${newRole}.`
-    });
   };
+
+  const toggleUserMode = async (userId: string, mode: string) => { // Changed from toggleUserRole
+    // Special exception for admin username
+    if (userId === currentUser?.id && currentUser.username !== "admin")
+      return toast({
+        title: "Cannot change own mode", // Changed from role to mode
+        variant: "destructive",
+      });
   
+    const { error } = await supabase
+      .from("user")
+      .update({ mode }) // Changed from role to mode
+      .eq("id", userId);
+    if (error) {
+      toast({
+        title: "Error updating mode", // Changed from role to mode
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({ title: "Mode updated" }); // Changed from role to mode
+      fetchUsers();
+    }
+  };
+
+  const filteredUsers = users.filter(
+    (user) =>
+      user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.mode?.toLowerCase().includes(searchTerm.toLowerCase()) // Changed from role to mode
+  );
+
+  const adminCount = users.filter(u => u.mode === 'admin' || u.username === 'admin').length;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
-        <div className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-medium flex items-center">
-          <Shield className="h-3 w-3 mr-1" />
-          Admin Access
-        </div>
-      </div>
-      
+      <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader>
             <CardTitle className="text-sm">Total Users</CardTitle>
           </CardHeader>
           <CardContent>
@@ -197,7 +191,7 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader>
             <CardTitle className="text-sm">Total Listings</CardTitle>
           </CardHeader>
           <CardContent>
@@ -205,172 +199,109 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader>
             <CardTitle className="text-sm">Admin Users</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {users.filter(u => u.role === 'admin').length}
-            </div>
+            <div className="text-2xl font-bold">{adminCount}</div>
           </CardContent>
         </Card>
       </div>
-      
+
       <Tabs defaultValue="users">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid grid-cols-2">
           <TabsTrigger value="users">User Management</TabsTrigger>
           <TabsTrigger value="create">Create Admin</TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="users" className="space-y-4 pt-4">
-          <div className="flex items-center space-x-2">
-            <Input 
-              placeholder="Search users..." 
-              value={searchTerm} 
-              onChange={(e) => setSearchTerm(e.target.value)} 
-              className="max-w-sm"
-            />
-          </div>
-          
-          <div className="rounded-md border">
-            <div className="grid grid-cols-12 p-4 bg-muted/50 font-medium">
-              <div className="col-span-3 lg:col-span-3">Name</div>
-              <div className="col-span-4 lg:col-span-4">Email</div>
-              <div className="col-span-3 lg:col-span-3">Role</div>
-              <div className="col-span-2 lg:col-span-2 text-right">Actions</div>
-            </div>
-            {filteredUsers.length > 0 ? (
-              filteredUsers.map(user => (
-                <div 
-                  key={user.id}
-                  className="grid grid-cols-12 p-4 border-t items-center"
-                >
-                  <div className="col-span-3 lg:col-span-3 flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-full bg-rental-100 flex items-center justify-center text-rental-700">
-                      {user.name.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="font-medium truncate">{user.name}</span>
-                  </div>
-                  <div className="col-span-4 lg:col-span-4 truncate">
-                    {user.email}
-                  </div>
-                  <div className="col-span-3 lg:col-span-3">
-                    <div className="flex items-center gap-1">
-                      {user.role === 'admin' ? (
-                        <Shield className="h-4 w-4 text-rental-700" />
-                      ) : (
-                        <User className="h-4 w-4 text-gray-500" />
-                      )}
-                      <span className="capitalize">{user.role}</span>
-                    </div>
-                  </div>
-                  <div className="col-span-2 lg:col-span-2 flex justify-end gap-2">
+
+        <TabsContent value="users" className="pt-4">
+          <Input
+            placeholder="Search users..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <div className="border rounded-md mt-4">
+            {filteredUsers.map((user) => (
+              <div key={user.id} className="grid grid-cols-4 p-4 border-t">
+                <div>{user.username}</div>
+                <div>{user.email}</div>
+                <div>
+                  {user.username === "admin" ? (
+                    <span className="font-semibold">Admin</span>
+                  ) : (
                     <Select
-                      value={user.role}
-                      onValueChange={(value) => toggleUserRole(user.id, value)}
-                      disabled={user.id === currentUser?.id}
+                      value={user.mode} // Changed from role to mode
+                      onValueChange={(v) => toggleUserMode(user.id, v)} // Changed from toggleUserRole
                     >
-                      <SelectTrigger className="w-24">
+                      <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="host">Host</SelectItem>
                         <SelectItem value="guest">Guest</SelectItem>
                       </SelectContent>
                     </Select>
-                    
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
+                  )}
+                </div>
+                <div className="text-right">
+                  {user.username !== "admin" && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={() => handleDeleteUser(user.id)}
-                      disabled={user.id === currentUser?.id}
-                      className="text-red-500 hover:text-red-600 hover:bg-red-50"
                     >
                       <AlertTriangle className="h-4 w-4" />
-                      <span className="sr-only">Delete</span>
                     </Button>
-                  </div>
+                  )}
                 </div>
-              ))
-            ) : (
-              <div className="p-4 text-center text-muted-foreground">
-                No users found.
               </div>
-            )}
+            ))}
           </div>
         </TabsContent>
-        
+
         <TabsContent value="create" className="pt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Create New Admin User</CardTitle>
-              <CardDescription>
-                Create a new administrator account. Admins have full access to the system.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleCreateAdmin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Name</Label>
-                  <Input
-                    id="name"
-                    name="name"
-                    value={newUser.name}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    value={newUser.email}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    value={newUser.password}
-                    onChange={handleChange}
-                    required
-                    minLength={6}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Password must be at least 6 characters long.
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select value={newUser.role} onValueChange={handleRoleChange}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="host">Host</SelectItem>
-                      <SelectItem value="guest">Guest</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create User
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
+          <form onSubmit={handleCreateAdmin} className="space-y-4">
+            <Input
+              placeholder="Name"
+              name="name"
+              value={newUser.name}
+              onChange={handleChange}
+              required
+            />
+            <Input
+              placeholder="Email"
+              name="email"
+              value={newUser.email}
+              onChange={handleChange}
+              required
+              type="email"
+            />
+            <Input
+              placeholder="Password"
+              name="password"
+              value={newUser.password}
+              onChange={handleChange}
+              required
+              type="password"
+            />
+            <Select value={newUser.mode} onValueChange={handleModeChange}> {/* Changed from role to mode and handleRoleChange to handleModeChange */}
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="host">Host</SelectItem>
+                <SelectItem value="guest">Guest</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? (
+                <Loader2 className="animate-spin h-4 w-4" />
+              ) : (
+                "Create User"
+              )}
+            </Button>
+          </form>
         </TabsContent>
       </Tabs>
     </div>
