@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Listing, Location } from './listingService'; // Assuming Listing and Location interfaces are exported from listingService
+import { Listing, Location, Photo } from './listingService'; // Assuming Listing, Location, and Photo interfaces are exported from listingService
 
 export interface SavedListing {
   listings: number; // Corresponds to listing_id
@@ -47,25 +47,30 @@ export const savedListingService = {
   async getByUsername(
     username: string,
     includeDetails: boolean = false
-  ): Promise<(SavedListing | (SavedListing & { listing_details: Listing & { locations: Location | null } | null }))[]> {
-    // Define a type for the data expected from Supabase when details are included
-    type SavedListingWithDetails = SavedListing & {
-      listing: (Listing & { locations: Location | null }) | null;
+  ): Promise<(SavedListing | (SavedListing & { listing_details: Listing & { locations: (Location & { photos?: Photo[] }) | null } | null }))[]> { 
+    // Define types for handling data with and without details
+    type LocationWithPhotos = Location & { photos?: Photo[] };
+    type ListingWithLocationAndPhotos = Listing & { locations: LocationWithPhotos | null };
+
+    // Define a type for the data expected directly from Supabase query when details are included
+    // 'listing' will have 'locations' and 'photos' as sibling properties here.
+    type RawSupabaseListing = Listing & { // Extends base Listing properties
+      locations: Location | null;         // Raw location object from query
+      photos: Photo[] | null;             // Raw photos array from query, sibling to locations
+    };
+
+    type SavedListingWithRawSupabaseDetails = SavedListing & {
+      listing: RawSupabaseListing | null;
     };
 
     let query = supabase
       .from('saved_listings')
-      // Explicitly type the expected return shape for the select query
       .select<
         string,
-        SavedListing & { 
-          listing: (Listing & { locations: Location | null }) | null; 
-        }
-      >(includeDetails ? `*, listing!inner(*, locations(*))` : '*') 
+        SavedListingWithRawSupabaseDetails // Use the new type for raw data
+      >(includeDetails ? `*, listing!inner(*, locations!inner(*), photos(*))` : '*') // photos is now sibling to locations, under listing
       .eq('f_username', username);
 
-    // The data type from Supabase client can be `PostgrestResponse<T>['data']` which can be T[] | null
-    // or for single(), T | null. Here it's T[] | null.
     const { data, error } = await query;
 
     if (error) {
@@ -73,29 +78,33 @@ export const savedListingService = {
       throw error;
     }
 
-    // If data is null (e.g., no records found or error), return an empty array.
     if (!data) {
       return [];
     }
 
     if (includeDetails) {
-      // At this point, 'data' is (SavedListing & { listing: ... })[]
-      // The 'as any as X' pattern is sometimes needed if TypeScript struggles with complex mapped types.
-      // However, with explicit select typing, it might directly map.
-      return (data as SavedListingWithDetails[]).map(sl => {
-        const { listing, ...savedListingBase } = sl;
+      return (data as SavedListingWithRawSupabaseDetails[]).map(sl => {
+        const { listing: rawListingData, ...savedListingBase } = sl;
+        let processedListingDetails: ListingWithLocationAndPhotos | null = null;
+
+        if (rawListingData) {
+          const { locations: rawLocationObj, photos: rawPhotosArray, ...baseListingProps } = rawListingData;
+          processedListingDetails = {
+            ...baseListingProps, // Spread base props from Listing (description, price, etc.)
+            locations: rawLocationObj ? {
+              ...rawLocationObj,    // Spread props from Location (city, zip_code, etc.)
+              photos: rawPhotosArray || [] // Attach photos here
+            } : null
+          };
+        }
+
         return {
           ...savedListingBase,
-          listing_details: listing ? {
-            ...listing,
-            locations: listing.locations || null
-          } : null
+          listing_details: processedListingDetails
         };
-        // Ensure the final mapped type matches the Promise return type
-      }) as (SavedListing & { listing_details: (Listing & { locations: Location | null }) | null })[];
+      }) as (SavedListing & { listing_details: ListingWithLocationAndPhotos | null })[];
     }
 
-    // If not includeDetails, data is SavedListing[]
     return data as SavedListing[];
   },
 

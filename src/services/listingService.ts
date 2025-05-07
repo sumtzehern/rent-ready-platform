@@ -1,12 +1,32 @@
 import { supabase } from '../lib/supabase';
 
+export interface Photo {
+  photo_id: number;
+  photo_url: string;
+  f_listing_id: number;
+  f_location_id: number;
+}
+
+export interface Location {
+  location_id: number;
+  street: string;
+  city: string;
+  state: string;
+  zip_code?: string;
+  country?: string;
+  number_of_rooms?: number;
+}
+
 export interface Listing {
   listing_id: number;
+  title?: string;
   price: number;
   description: string;
   contact_info: string;
   host_username: string;
   location_id: number;
+  locations?: Location | null;
+  photos?: Photo[];
 }
 
 export const listingService = {

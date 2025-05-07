@@ -32,17 +32,19 @@ const Dashboard = () => {
       </div>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {user?.mode === 'host' ? 'Your Listings' : 'Saved Listings'}
-            </CardTitle>
-            <Home className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{user?.mode === 'host' ? userListings.length : 0}</div>
-          </CardContent>
-        </Card>
+        {user?.mode === 'host' && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">
+                {'Your Listings'}
+              </CardTitle>
+              <Home className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{userListings.length}</div>
+            </CardContent>
+          </Card>
+        )}
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -174,45 +176,45 @@ const Dashboard = () => {
         )}
         
         {/* Quick Stats */}
-        <Card className="col-span-1">
-          <CardHeader>
-            <CardTitle>Property Insights</CardTitle>
-            <CardDescription>
-              Distribution of properties by city
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {Object.entries(stats.cityDistribution).length > 0 ? (
-              <div className="space-y-4">
-                {Object.entries(stats.cityDistribution).map(([city, count]) => (
-                  <div key={city} className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>{city}</span>
-                      <span className="font-medium">{count} listings</span>
+        {user?.mode === 'host' && (
+          <Card className="col-span-1">
+            <CardHeader>
+              <CardTitle>Property Insights</CardTitle>
+              <CardDescription>
+                Distribution of properties by city
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {Object.entries(stats.cityDistribution).length > 0 ? (
+                <div className="space-y-4">
+                  {Object.entries(stats.cityDistribution).map(([city, count]) => (
+                    <div key={city} className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>{city}</span>
+                        <span className="font-medium">{count} listings</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div 
+                          className="bg-rental-500 h-2.5 rounded-full" 
+                          style={{ width: `${listings.length > 0 ? (count / listings.length) * 100 : 0}%` }}
+                        ></div>
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                      <div 
-                        className="bg-rental-500 h-2.5 rounded-full" 
-                        style={{ width: `${listings.length > 0 ? (count / listings.length) * 100 : 0}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-6 text-muted-foreground">
-                <p>No data available yet.</p>
-              </div>
-            )}
-          </CardContent>
-          <CardFooter>
-            <Link to="/reports" className="w-full">
-              <Button variant="outline" className="w-full">
-                View Full Reports
-              </Button>
-            </Link>
-          </CardFooter>
-        </Card>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No city data available yet.</p>
+              )}
+            </CardContent>
+            <CardFooter>
+              <Link to="/reports" className="w-full">
+                <Button variant="outline" className="w-full">
+                  View Full Reports
+                </Button>
+              </Link>
+            </CardFooter>
+          </Card>
+        )}
       </div>
     </div>
   );

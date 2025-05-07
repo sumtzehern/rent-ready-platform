@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { savedListingService, SavedListing } from '@/services/savedListingService';
-import { Listing, Location, Photo } from '@/services/listingService'; 
+import { Listing, Photo } from '@/services/listingService'; 
+import { Location } from "@/services/locationService";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Trash2, Home } from 'lucide-react';
@@ -10,9 +11,8 @@ import { toast } from '@/components/ui/use-toast';
 
 // This interface represents the structure when includeDetails is true
 interface SavedListingWithPopulatedDetails extends SavedListing {
-  listings: number; // Corresponds to listing_id from SavedListing
-  f_username: string;
-  listing_details: Listing & { locations?: Location | null; photos?: Photo[] }; // Non-nullable listing_details
+  // Inherits all properties from SavedListing, including listing_id and username
+  listing_details: Listing & { locations?: (Location & { photos?: Photo[] }) | null }; // photos are now under locations
 }
 
 const SavedListingsPage = () => {
@@ -28,7 +28,7 @@ const SavedListingsPage = () => {
         const listingsFromService = await savedListingService.getByUsername(
           user.username, 
           true
-        ) as unknown as Array<SavedListing & { listing_details?: (Listing & { locations?: Location | null; photos?: Photo[] }) | null }>;
+        ) as unknown as Array<SavedListing & { listing_details?: (Listing & { locations?: (Location & { photos?: Photo[] }) | null }) | null }>;
 
         const detailedSavedListings = listingsFromService
           .filter((item): item is SavedListingWithPopulatedDetails => 
@@ -115,13 +115,14 @@ const SavedListingsPage = () => {
           if (!listing_details) return null;
           const listing = listing_details; // alias for clarity
           const location = listing.locations; // Supabase relationship might bring it as 'locations'
+          const photos = listing.locations?.photos; // Photos are now nested under locations
 
           return (
             <Card key={listing.listing_id} className="overflow-hidden listing-card h-full flex flex-col">
               <div className="relative h-48 w-full">
-                {listing.photos && listing.photos.length > 0 && listing.photos[0].photo_url ? (
+                {photos && photos.length > 0 && photos[0].photo_url ? (
                   <img 
-                    src={listing.photos[0].photo_url} 
+                    src={photos[0].photo_url} 
                     alt={listing.title || 'Property image'} 
                     className="w-full h-full object-cover"
                   />
