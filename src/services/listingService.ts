@@ -117,8 +117,13 @@ export const listingService = {
           photo.f_location_id === listing.location_id
         );
         
+        // Ensure location property is always available for consistency
+        // This matches the database structure mentioned in the requirements
+        // where data can come as either 'location' or 'locations'
         return {
           ...listing,
+          // If locations exists from the join query, copy it to location property as well
+          location: listing.locations || null,
           photos: listingPhotos.length > 0 ? listingPhotos.map(photo => ({
             photo_id: photo.photoid,
             photoid: photo.photoid,
