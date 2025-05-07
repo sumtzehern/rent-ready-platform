@@ -130,7 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         username,
         email,
         password,
-        mode: 'host' // Default role
+        mode: 'guest' // Default role
       };
 
       // Save to database
