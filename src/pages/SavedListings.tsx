@@ -100,7 +100,7 @@ const SavedListingsPage = () => {
         <p className="text-muted-foreground mb-6">
           You haven't saved any listings yet. Start exploring!
         </p>
-        <Link to="/listings">
+        <Link to="/listings/all">
           <Button>Browse Listings</Button>
         </Link>
       </div>
