@@ -1,7 +1,7 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useListing } from "@/contexts/ListingContext";
+import { useListing, Listing } from "@/contexts/ListingContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -19,27 +19,47 @@ import {
 
 const ListingDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { getListing, deleteListing, isLoading } = useListing();
+  const { getListing, deleteListing, isLoading: contextLoading } = useListing();
   const { user, checkIsAdmin } = useAuth();
   const navigate = useNavigate();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [listing, setListing] = useState<Listing | undefined>(undefined);
+  const [isLoading, setIsLoading] = useState(true);
 
   const isAdmin = checkIsAdmin();
-  const listing = id ? getListing(id) : undefined;
-  const canEdit = listing && (user?.id === listing.hostId || isAdmin);
+  const canEdit = listing && (user?.username === listing.host_username || isAdmin);
+  
+  // Fetch listing data when component mounts
+  useEffect(() => {
+    const fetchListingData = async () => {
+      if (!id) return;
+      
+      try {
+        setIsLoading(true);
+        const listingData = await getListing(parseInt(id));
+        setListing(listingData);
+      } catch (error) {
+        console.error("Error fetching listing:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchListingData();
+  }, [id, getListing]);
 
   const handleDelete = async () => {
     if (!id) return;
     
     try {
-      await deleteListing(id);
+      await deleteListing(parseInt(id));
       navigate("/listings");
     } catch (error) {
       // Error is handled in the context
     }
   };
 
-  if (isLoading) {
+  if (isLoading || contextLoading) {
     return (
       <div className="flex justify-center items-center py-12">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -73,11 +93,11 @@ const ListingDetail = () => {
               <ArrowLeft className="h-5 w-5" />
             </Button>
           </Link>
-          <h1 className="text-2xl font-bold tracking-tight">{listing.title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{listing.title || 'Property Listing'}</h1>
         </div>
         {canEdit && (
           <div className="flex space-x-2">
-            <Link to={`/listings/edit/${listing.id}`}>
+            <Link to={`/listings/edit/${listing.listing_id}`}>
               <Button variant="outline">
                 <Pencil className="mr-2 h-4 w-4" />
                 Edit
@@ -99,10 +119,10 @@ const ListingDetail = () => {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <div className="aspect-video w-full overflow-hidden">
-              {listing.imageUrl ? (
+              {listing.photos && listing.photos.length > 0 ? (
                 <img 
-                  src={listing.imageUrl} 
-                  alt={listing.title} 
+                  src={listing.photos[0].photo_url} 
+                  alt={listing.title || 'Property'} 
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -120,12 +140,12 @@ const ListingDetail = () => {
               
               <div className="grid grid-cols-2 gap-4 border-t pt-6">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Bedrooms</h3>
-                  <p className="text-lg">{listing.bedrooms}</p>
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">Rooms</h3>
+                  <p className="text-lg">{listing.location?.number_of_rooms || 'N/A'}</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 mb-1">Bathrooms</h3>
-                  <p className="text-lg">{listing.bathrooms}</p>
+                  <h3 className="text-sm font-medium text-gray-500 mb-1">Contact</h3>
+                  <p className="text-lg">{listing.contact_info || 'N/A'}</p>
                 </div>
               </div>
             </CardContent>
@@ -135,8 +155,14 @@ const ListingDetail = () => {
             <CardContent className="p-6">
               <h2 className="text-xl font-semibold mb-4">Location</h2>
               <div className="space-y-2">
-                <p className="text-gray-700">{listing.address}</p>
-                <p className="text-gray-700">{listing.city}, {listing.state} {listing.zipCode}</p>
+                {listing.location ? (
+                  <>
+                    <p className="text-gray-700">{listing.location.street}</p>
+                    <p className="text-gray-700">{listing.location.city}, {listing.location.state} {listing.location.zip_code}</p>
+                  </>
+                ) : (
+                  <p className="text-gray-700">Location information unavailable</p>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -151,19 +177,15 @@ const ListingDetail = () => {
               </div>
               
               <div className="border-t border-b py-4 mb-6">
-                <div className="flex justify-between text-sm mb-2">
-                  <span>Listed on</span>
-                  <span>{new Date(listing.createdAt).toLocaleDateString()}</span>
-                </div>
                 <div className="flex justify-between text-sm">
-                  <span>Last updated</span>
-                  <span>{new Date(listing.updatedAt).toLocaleDateString()}</span>
+                  <span>Listing ID</span>
+                  <span>{listing.listing_id}</span>
                 </div>
               </div>
               
               <div className="text-sm text-gray-500 mb-6">
-                <div className="mb-1">Property ID: {listing.id.substring(0, 8)}...</div>
-                <div>Host ID: {listing.hostId.substring(0, 8)}...</div>
+                <div className="mb-1">Property ID: {listing.listing_id}</div>
+                <div>Host: {listing.host_username}</div>
               </div>
             </CardContent>
             <CardFooter className="px-6 pb-6 pt-0">
