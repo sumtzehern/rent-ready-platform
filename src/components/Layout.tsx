@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   BarChart3,
-  Shield
+  Shield,
+  MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ListingProvider } from "@/contexts/ListingContext";
@@ -54,7 +55,12 @@ const Layout = () => {
     {
       name: "Messages",
       path: "/messages",
-      icon: <BarChart3 className="mr-2 h-4 w-4" />
+      icon: <MessageSquare className="mr-2 h-4 w-4" />
+    },
+    {
+      name: "All Listings",
+      path: "/listings/all",
+      icon: <List className="mr-2 h-4 w-4" />
     },
     {
       name: "Profile",

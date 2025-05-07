@@ -21,6 +21,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Profile from "./pages/Profile";
 import ReportingPage from "./pages/ReportingPage";
 import MessagePage from "./pages/Message";
+import AllListing from "./pages/AllListing";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
                 <Route path="/listings/:id" element={<ListingDetail />} />
                 <Route path="/listings/create" element={<CreateListing />} />
                 <Route path="/listings/edit/:id" element={<EditListing />} />
+                <Route path="/listings/all" element={<AllListing />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/reports" element={<ReportingPage />} />
                 <Route path="/messages/:receiverId?" element={<MessagePage />} />
