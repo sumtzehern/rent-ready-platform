@@ -63,49 +63,61 @@ export const savedListingService = {
       listing: RawSupabaseListing | null;
     };
 
-    let query = supabase
-      .from('saved_listings')
-      .select<
-        string,
-        SavedListingWithRawSupabaseDetails // Use the new type for raw data
-      >(includeDetails ? `*, listing!inner(*, locations!inner(*), photos(*))` : '*') // photos is now sibling to locations, under listing
-      .eq('f_username', username);
-
-    const { data, error } = await query;
-
-    if (error) {
-      console.error('Error fetching saved listings:', error.message);
-      throw error;
-    }
-
-    if (!data) {
-      return [];
-    }
-
     if (includeDetails) {
-      return (data as SavedListingWithRawSupabaseDetails[]).map(sl => {
-        const { listing: rawListingData, ...savedListingBase } = sl;
+      // Call the RPC function
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_saved_listings_with_details_by_username', {
+        _username: username,
+      });
+
+      if (rpcError) {
+        console.error('Error fetching saved listings via RPC:', rpcError.message);
+        throw rpcError;
+      }
+      if (!rpcData) {
+        return [];
+      }
+
+      // Transform the RPC data to the expected frontend structure
+      return rpcData.map(item => {
+        // The 'item' from RPC has: { listings: number, f_username: string, listing_details: RawSupabaseListing | null }
+        const { listings, f_username: item_f_username, listing_details: rawListingDataFromRpc } = item;
         let processedListingDetails: ListingWithLocationAndPhotos | null = null;
 
-        if (rawListingData) {
-          const { locations: rawLocationObj, photos: rawPhotosArray, ...baseListingProps } = rawListingData;
+        if (rawListingDataFromRpc) {
+          // rawListingDataFromRpc is already structured like RawSupabaseListing by the RPC
+          // Explicitly cast for type safety, though structure should match.
+          const typedRawListingData = rawListingDataFromRpc as RawSupabaseListing;
+          const { locations: rawLocationObj, photos: rawPhotosArray, ...baseListingProps } = typedRawListingData;
+          
           processedListingDetails = {
-            ...baseListingProps, // Spread base props from Listing (description, price, etc.)
+            ...baseListingProps, 
             locations: rawLocationObj ? {
-              ...rawLocationObj,    // Spread props from Location (city, zip_code, etc.)
-              photos: rawPhotosArray || [] // Attach photos here
+              ...rawLocationObj,    
+              photos: rawPhotosArray || [] 
             } : null
           };
         }
 
         return {
-          ...savedListingBase,
+          listings, // from item
+          f_username: item_f_username, // from item
           listing_details: processedListingDetails
         };
       }) as (SavedListing & { listing_details: ListingWithLocationAndPhotos | null })[];
-    }
 
-    return data as SavedListing[];
+    } else {
+      // Original logic for when includeDetails is false (no need to fetch full listing details)
+      const { data, error } = await supabase
+        .from('saved_listings')
+        .select('*')
+        .eq('f_username', username);
+
+      if (error) {
+        console.error('Error fetching saved listings (basic):', error.message);
+        throw error;
+      }
+      return (data || []) as SavedListing[];
+    }
   },
 
   // Check if a specific listing is saved by a user
