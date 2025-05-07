@@ -112,7 +112,9 @@ const Dashboard = () => {
                     <div className="flex-1">
                       <h4 className="font-medium">{listing.description.substring(0, 30)}...</h4>
                       <p className="text-sm text-muted-foreground">
-                        {listing.location ? `${listing.location.city}, ${listing.location.state}` : 'Location not available'}
+                        {listing.location ? `${listing.location.city}, ${listing.location.state}` :
+                        /* @ts-ignore - This is a fallback for data that might come in a different format */
+                        listing.locations ? `${listing.locations.city}, ${listing.locations.state}` : 'Location not available'}
                       </p>
                     </div>
                     <div className="font-medium">${listing.price}</div>

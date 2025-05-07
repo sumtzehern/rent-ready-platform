@@ -1,9 +1,12 @@
 import { supabase } from '../lib/supabase';
 
 export interface Photo {
-  photo_id: number;
+  photo_id?: number; // Changed to optional for creation
+  photoid?: number; // Match schema column name
   photo_url: string;
   f_listing_id: number;
+  f_location_id?: number; // This exists in the schema
+  photo_time?: string; // This exists in the schema
 }
 
 export const photoService = {
@@ -25,7 +28,16 @@ export const photoService = {
       .eq('f_listing_id', listingId);
     
     if (error) throw error;
-    return data;
+    
+    // Map database columns to expected format if needed
+    return data.map(photo => ({
+      photo_id: photo.photoid, // Map photoid to photo_id for consistency
+      photoid: photo.photoid,
+      photo_url: photo.photo_url,
+      f_listing_id: photo.f_listing_id,
+      f_location_id: photo.f_location_id,
+      photo_time: photo.photo_time
+    }));
   },
 
   // Create a new photo
@@ -64,6 +76,15 @@ export const photoService = {
 
   // Upload a photo to Supabase storage and create a record
   async uploadAndCreate(file: File, listingId: number) {
+    // First get the listing to find its location_id
+    const { data: listing, error: listingError } = await supabase
+      .from('listing')
+      .select('location_id')
+      .eq('listing_id', listingId)
+      .single();
+      
+    if (listingError) throw listingError;
+    
     // Generate a unique filename
     const fileName = `${Date.now()}-${file.name}`;
     const filePath = `listings/${listingId}/${fileName}`;
@@ -82,10 +103,16 @@ export const photoService = {
       .from('photos')
       .getPublicUrl(filePath);
     
-    // Create a record in the photos table
+    // Get current time for photo_time field
+    const now = new Date();
+    const timeString = now.toTimeString().split(' ')[0]; // Format: HH:MM:SS
+    
+    // Create a record in the photos table matching the schema
     const photo = {
       photo_url: urlData.publicUrl,
-      f_listing_id: listingId
+      f_listing_id: listingId,
+      f_location_id: listing.location_id,
+      photo_time: timeString
     };
     
     return await photoService.create(photo);

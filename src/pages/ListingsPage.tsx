@@ -97,7 +97,7 @@ const ListingsPage = () => {
           {filteredListings.map((listing) => (
             <Card key={listing.listing_id} className="overflow-hidden listing-card h-full">
               <div className="relative h-48 w-full">
-                {listing.photos && listing.photos.length > 0 ? (
+                {listing.photos && listing.photos.length > 0 && listing.photos[0].photo_url ? (
                   <img 
                     src={listing.photos[0].photo_url} 
                     alt={listing.title || 'Property'} 
@@ -120,12 +120,24 @@ const ListingsPage = () => {
                       <>
                         {listing.location.street}, {listing.location.city}, {listing.location.state}
                       </>
-                    ) : 'Location information unavailable'}
+                    ) : (
+                      /* @ts-ignore - This is a fallback for data that might come in a different format */
+                      listing.locations ? (
+                        <>
+                          {/* @ts-ignore */}
+                          {listing.locations.street}, {listing.locations.city}, {listing.locations.state}
+                        </>
+                      ) : 'Location information unavailable'
+                    )}
                   </p>
                   <p className="text-sm mb-4 line-clamp-2">{listing.description}</p>
                   <div className="text-sm text-gray-500 flex gap-3 mb-4">
-                    {listing.location && (
-                      <span>{listing.location.number_of_rooms} {listing.location.number_of_rooms === 1 ? 'room' : 'rooms'}</span>
+                    {(listing.location || /* @ts-ignore */ listing.locations) && (
+                      <span>
+                        {listing.location?.number_of_rooms || /* @ts-ignore */ listing.locations?.number_of_rooms} 
+                        {(listing.location?.number_of_rooms === 1 || /* @ts-ignore */ listing.locations?.number_of_rooms === 1) 
+                          ? 'room' : 'rooms'}
+                      </span>
                     )}
                   </div>
                 </div>

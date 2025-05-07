@@ -13,17 +13,29 @@ export interface Listing {
   host_username: string;
   location_id: number;
   location?: {
-    location_id?: number;
-    zip_code: string;
+    location_id: number;
+    street: string;
     city: string;
     state: string;
+    zip_code: string | number;
+    number_of_rooms: number;
+  };
+  // Adding locations as an alternative property name for the same data
+  locations?: {
+    location_id: number;
     street: string;
+    city: string;
+    state: string;
+    zip_code: string | number;
     number_of_rooms: number;
   };
   photos?: {
     photo_id?: number;
+    photoid?: number; // Match the database column name
     photo_url: string;
     f_listing_id: number;
+    f_location_id?: number;
+    photo_time?: string;
   }[];
 }
 
@@ -111,7 +123,9 @@ export const ListingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (!locationId && listingData.location) {
         // Map the location to match the schema structure
         const locationData = await locationService.create({
-          zip_code: parseInt(listingData.location.zip_code), // Convert to number to match schema
+          zip_code: typeof listingData.location.zip_code === 'string' 
+            ? parseInt(listingData.location.zip_code) 
+            : listingData.location.zip_code, // Handle either string or number
           city: listingData.location.city,
           state: listingData.location.state,
           street: listingData.location.street,
@@ -191,7 +205,9 @@ export const ListingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         // If location exists, update it
         if (currentListing.location_id) {
           await locationService.update(currentListing.location_id, {
-            zip_code: parseInt(listingData.location.zip_code), // Convert to number to match schema
+            zip_code: typeof listingData.location.zip_code === 'string' 
+              ? parseInt(listingData.location.zip_code) 
+              : listingData.location.zip_code, // Handle either string or number
             city: listingData.location.city,
             state: listingData.location.state,
             street: listingData.location.street,
@@ -201,7 +217,9 @@ export const ListingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         } else {
           // If location doesn't exist, create it
           const locationData = await locationService.create({
-            zip_code: parseInt(listingData.location.zip_code), // Convert to number to match schema
+            zip_code: typeof listingData.location.zip_code === 'string' 
+              ? parseInt(listingData.location.zip_code) 
+              : listingData.location.zip_code, // Convert to number to match schema
             city: listingData.location.city,
             state: listingData.location.state,
             street: listingData.location.street,

@@ -37,6 +37,9 @@ const ListingDetail = () => {
       try {
         setIsLoading(true);
         const listingData = await getListing(parseInt(id));
+        console.log('Listing data received:', listingData);
+        console.log('Location data:', listingData?.location);
+        console.log('Photos:', listingData?.photos);
         setListing(listingData);
       } catch (error) {
         console.error("Error fetching listing:", error);
@@ -119,7 +122,7 @@ const ListingDetail = () => {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <div className="aspect-video w-full overflow-hidden">
-              {listing.photos && listing.photos.length > 0 ? (
+              {listing.photos && listing.photos.length > 0 && listing.photos[0].photo_url ? (
                 <img 
                   src={listing.photos[0].photo_url} 
                   alt={listing.title || 'Property'} 
@@ -141,7 +144,11 @@ const ListingDetail = () => {
               <div className="grid grid-cols-2 gap-4 border-t pt-6">
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Rooms</h3>
-                  <p className="text-lg">{listing.location?.number_of_rooms || 'N/A'}</p>
+                  <p className="text-lg">
+                    {listing.location?.number_of_rooms || 
+                     /* @ts-ignore - Handle potential locations property */
+                     (listing.locations?.number_of_rooms) || 'N/A'}
+                  </p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-500 mb-1">Contact</h3>
@@ -158,10 +165,27 @@ const ListingDetail = () => {
                 {listing.location ? (
                   <>
                     <p className="text-gray-700">{listing.location.street}</p>
-                    <p className="text-gray-700">{listing.location.city}, {listing.location.state} {listing.location.zip_code}</p>
+                    <p className="text-gray-700">
+                      {listing.location.city}, {listing.location.state} {listing.location.zip_code}
+                    </p>
                   </>
                 ) : (
-                  <p className="text-gray-700">Location information unavailable</p>
+                  <>
+                    {/* If we have locations data as a raw property (from the database), display it */}
+                    {/* @ts-ignore - This is a fallback for data that might come in a different format */}
+                    {listing.locations ? (
+                      <>
+                        {/* @ts-ignore - Using a type assertion would be cleaner but this works */}
+                        <p className="text-gray-700">{listing.locations.street}</p>
+                        <p className="text-gray-700">
+                          {/* @ts-ignore */}
+                          {listing.locations.city}, {listing.locations.state} {listing.locations.zip_code}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-gray-700">Location information unavailable</p>
+                    )}
+                  </>
                 )}
               </div>
             </CardContent>
