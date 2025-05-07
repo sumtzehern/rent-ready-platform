@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcryptjs';
 
 // Constants for token storage
 const AUTH_TOKEN_KEY = 'rent_ready_auth_token';
@@ -38,18 +39,19 @@ export const userService = {
   // Create a new user
   async create(user: Omit<User, 'mode'> & { mode?: string }) {
     console.log('Creating new user:', { ...user, password: '***' });
-    
     try {
+      // Hash the password before storing
+      const salt = bcrypt.genSaltSync(10);
+      const hashedPassword = bcrypt.hashSync(user.password, salt);
+      const userToSave = { ...user, password: hashedPassword, mode: user.mode || 'guest' };
       const { data, error } = await supabase
         .from('user')
-        .insert([{ ...user, mode: user.mode || 'guest' }])
+        .insert([userToSave])
         .select();
-      
       if (error) {
         console.error('Error creating user:', error);
         throw error;
       }
-      
       console.log('User created successfully:', data[0]);
       return data[0];
     } catch (error) {
@@ -85,61 +87,37 @@ export const userService = {
   async login(email: string, password: string) {
     try {
       console.log('Login attempt with email:', email);
-      
-      // First try to find the user by email only to see if they exist
+      // Find the user by email
       const { data: userCheck, error: checkError } = await supabase
         .from('user')
         .select('*')
         .eq('email', email);
-      
       if (checkError) {
         console.error('Error checking for user:', checkError);
         throw checkError;
       }
-      
-      console.log('Users found with this email:', userCheck?.length || 0);
-      
       if (!userCheck || userCheck.length === 0) {
         console.log('No user found with this email');
         return null;
       }
-      
-      // Now check with password
-      const { data, error } = await supabase
-        .from('user')
-        .select('*')
-        .eq('email', email)
-        .eq('password', password);
-      
-      if (error) {
-        console.error('Error during password check:', error);
-        throw error;
-      }
-      
-      // If no user found with matching password
-      if (!data || data.length === 0) {
+      const user = userCheck[0];
+      // Compare the hashed password
+      const isMatch = bcrypt.compareSync(password, user.password);
+      if (!isMatch) {
         console.log('Password does not match');
         return null;
       }
-      
-      console.log('User authenticated successfully:', data[0]);
-      
-      // Instead of using Supabase Auth which requires email confirmation,
-      // we'll create a simple token by encoding the user data
-      // This is a simplified approach - in a production app, you'd want to use a proper JWT library
+      console.log('User authenticated successfully:', user);
+      // Create a simple token by encoding the user data
       const token = btoa(JSON.stringify({
-        id: data[0].username,
-        email: data[0].email,
+        id: user.username,
+        email: user.email,
         exp: Date.now() + (7 * 24 * 60 * 60 * 1000) // Token expires in 7 days
       }));
-      
       // Store the token and user data in localStorage
-      this.storeAuthData(token, data[0]);
-      
+      this.storeAuthData(token, user);
       console.log('Authentication token created and stored');
-      
-      // Return the first user found
-      return data[0];
+      return user;
     } catch (error) {
       console.error('Login error:', error);
       return null;

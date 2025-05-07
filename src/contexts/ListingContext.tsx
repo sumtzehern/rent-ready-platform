@@ -13,7 +13,7 @@ export interface Listing {
   host_username: string;
   location_id: number;
   location?: {
-    location_id: number;
+    location_id?: number; // Made optional for creation
     street: string;
     city: string;
     state: string;
@@ -22,13 +22,14 @@ export interface Listing {
   };
   // Adding locations as an alternative property name for the same data
   locations?: {
-    location_id: number;
+    location_id?: number; // Made optional for creation
     street: string;
     city: string;
     state: string;
     zip_code: string | number;
     number_of_rooms: number;
   };
+
   photos?: {
     photo_id?: number;
     photoid?: number; // Match the database column name
