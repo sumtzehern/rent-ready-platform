@@ -1,13 +1,5 @@
 import { supabase } from '../lib/supabase';
 
-export interface Photo {
-  photo_id: number;
-  photoid: number; 
-  photo_url: string;
-  f_listing_id?: number; 
-  f_location_id: number;
-}
-
 export interface Listing {
   listing_id: number;
   price: number;
@@ -15,25 +7,11 @@ export interface Listing {
   contact_info: string;
   host_username: string;
   location_id: number;
-  title?: string; 
-  photos?: Photo[]; 
-  locations?: Location; 
-}
-
-export interface Location {
-  location_id: number;
-  loc_type?: string | null; 
-  zip_code: number;
-  city: string;
-  state: string;
-  street: string;
-  number_of_listings?: number | null; 
-  number_of_rooms?: number; 
 }
 
 export const listingService = {
   // Get all listings
-  async getAll(): Promise<Listing[]> {
+  async getAll() {
     const { data, error } = await supabase
       .from('listing')
       .select('*');
@@ -43,7 +21,7 @@ export const listingService = {
   },
 
   // Get listing by ID with location and photos
-  async getById(listingId: number): Promise<Listing | null> {
+  async getById(listingId: number) {
     try {
       // Get the listing with its location
       const { data, error } = await supabase
@@ -55,17 +33,22 @@ export const listingService = {
         .eq('listing_id', listingId)
         .single();
       
-      if (error) {
-        if (error.code === 'PGRST116') { 
-          return null;
-        }
-        throw error;
-      }
+      if (error) throw error;
       
-      if (!data) return null;
-
-      // Supabase might return location nested under 'locations'
-      const locationData = data.locations as Location | undefined;
+      // Get location separately if not included in the join
+      let locationData = data.locations;
+      
+      if (!locationData && data.location_id) {
+        const { data: locData, error: locError } = await supabase
+          .from('locations')
+          .select('*')
+          .eq('location_id', data.location_id)
+          .single();
+          
+        if (!locError) {
+          locationData = locData;
+        }
+      }
       
       // Get photos separately
       const { data: photosData, error: photosError } = await supabase
@@ -75,26 +58,21 @@ export const listingService = {
       
       if (photosError) throw photosError;
       
-      const formattedPhotos: Photo[] = photosData ? photosData.map(photo => ({
+      // Map the photos to the listing
+      const formattedPhotos = photosData.map(photo => ({
         photo_id: photo.photoid,
         photoid: photo.photoid,
         photo_url: photo.photo_url,
-        f_listing_id: listingId, 
+        f_listing_id: listingId,
         f_location_id: data.location_id
-      })) : [];
+      }));
       
+      // Create a properly structured result
       return {
         ...data,
-        location_id: data.location_id, 
-        price: data.price,
-        description: data.description,
-        contact_info: data.contact_info,
-        host_username: data.host_username,
-        // title should come from data if it exists, otherwise handle as optional
-        title: data.title, 
-        locations: locationData, 
+        location: locationData, // Ensure location is always at this property
         photos: formattedPhotos.length > 0 ? formattedPhotos : undefined
-      } as Listing;
+      };
     } catch (error) {
       console.error('Error fetching listing details:', error);
       throw error;
@@ -102,7 +80,7 @@ export const listingService = {
   },
 
   // Get listings by host username
-  async getByHostUsername(hostUsername: string): Promise<Listing[]> {
+  async getByHostUsername(hostUsername: string) {
     const { data, error } = await supabase
       .from('listing')
       .select('*')
@@ -113,7 +91,7 @@ export const listingService = {
   },
 
   // Get listings with location details and photos
-  async getAllWithLocation(): Promise<Listing[]> {
+  async getAllWithLocation() {
     try {
       // First get all listings
       const { data: listingsData, error: listingsError } = await supabase
@@ -124,7 +102,6 @@ export const listingService = {
         `);
       
       if (listingsError) throw listingsError;
-      if (!listingsData) return [];
       
       // Now get all photos separately
       const { data: photosData, error: photosError } = await supabase
@@ -135,11 +112,6 @@ export const listingService = {
       
       // Map photos to their respective listings
       const enhancedData = listingsData.map(listing => {
-<<<<<<< HEAD
-        const listingPhotos: Photo[] = photosData ? photosData
-          .filter(photo => photo.f_location_id === listing.location_id)
-          .map(photo => ({
-=======
         const listingPhotos = photosData.filter(photo => 
           // In your schema, photos are linked to listings via f_location_id
           photo.f_location_id === listing.location_id
@@ -153,19 +125,13 @@ export const listingService = {
           // If locations exists from the join query, copy it to location property as well
           location: listing.locations || null,
           photos: listingPhotos.length > 0 ? listingPhotos.map(photo => ({
->>>>>>> d517ec51b08f4fbeaebdaf97b6dafbad4b0d4628
             photo_id: photo.photoid,
             photoid: photo.photoid,
             photo_url: photo.photo_url,
             f_listing_id: listing.listing_id,
             f_location_id: photo.f_location_id
-          })) : [];
-        
-        return {
-          ...listing,
-          photos: listingPhotos.length > 0 ? listingPhotos : undefined,
-          locations: listing.locations as Location | undefined 
-        } as Listing;
+          })) : undefined
+        };
       });
       
       return enhancedData;
@@ -176,46 +142,30 @@ export const listingService = {
   },
 
   // Create a new listing
-  async create(listingData: Omit<Listing, 'listing_id' | 'photos' | 'locations'> & { location_id: number, title?: string }): Promise<Listing> {
-    console.log('Creating listing:', listingData);
+  async create(listing: Omit<Listing, 'listing_id'>) {
+    console.log('Creating listing:', listing);
     const { data, error } = await supabase
       .from('listing')
-      .insert([listingData])
-      .select('*, locations(*)') 
-      .single();
+      .insert([listing])
+      .select();
     
     if (error) {
       console.error('Error creating listing:', error);
       throw error;
     }
-    if (!data) throw new Error('Listing creation failed, no data returned');
-
-    // Assuming photos are handled separately after listing creation
-    return {
-        ...data,
-        locations: data.locations as Location | undefined
-    } as Listing;
+    return data[0];
   },
 
   // Update a listing
-  async update(listingId: number, updates: Partial<Omit<Listing, 'photos' | 'locations'>>): Promise<Listing | null> {
+  async update(listingId: number, updates: Partial<Listing>) {
     const { data, error } = await supabase
       .from('listing')
       .update(updates)
       .eq('listing_id', listingId)
-      .select('*, locations(*)')
-      .single();
+      .select();
     
-    if (error) {
-        if (error.code === 'PGRST116') return null; 
-        throw error;
-    }
-    if (!data) return null;
-
-    return {
-        ...data,
-        locations: data.locations as Location | undefined
-    } as Listing;
+    if (error) throw error;
+    return data[0];
   },
 
   // Delete a listing
@@ -230,30 +180,23 @@ export const listingService = {
   },
 
   // Search listings by location
-  async searchByLocation(city: string, state: string): Promise<Listing[]> {
+  async searchByLocation(city: string, state: string) {
     const { data, error } = await supabase
       .from('listing')
       .select(`
         *,
-        locations(*)
+        locations(*) 
       `)
       .eq('locations.city', city)
       .eq('locations.state', state);
     
     if (error) throw error;
-    if (!data) return [];
-
-    // Similar to getAllWithLocation, we might need to fetch photos separately if not included
-    // For simplicity, assuming photos are not directly needed for search results display
-    // or would be fetched when viewing details.
-    return data.map(item => ({
-        ...item,
-        locations: item.locations as Location | undefined
-    })) as Listing[];
+    return data;
   },
 
   // Get listings with photos
   async getListingsWithPhotos() {
+    // Using the correct foreign key from the schema
     const { data, error } = await supabase
       .from('listing')
       .select(`
