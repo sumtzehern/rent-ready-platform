@@ -1,0 +1,7 @@
+Wesley Sum - Front-end / Back-end
+
+- Set up the project structure ,frontend
+- Populated sample data for DB
+- Implement messaging feature for guest and host
+- Worked on admin dashboard, reporting page, form validation
+- Worked on search and filter functionality

@@ -1,0 +1,5 @@
+Benjamin Baxter - Database
+
+- Presented presentation
+- Help with ER Diagram
+- Help with relational schema

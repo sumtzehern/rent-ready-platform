@@ -1,0 +1,6 @@
+Salvador Buenadicha - Front-end / Back-end
+
+- Worked on implementing client side API utility layer
+- Implemented login/register/hashing auth features
+- Implemented host vs guest view
+- Wrote some backend SQL query functions for retrieving saved listings

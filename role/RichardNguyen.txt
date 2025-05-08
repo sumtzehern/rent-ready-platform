@@ -1,0 +1,7 @@
+Richard Nguyen - Database / Front-end / Back-end
+
+- Wrote the SQL schema
+- Edited database definition
+- Worked on the frontend to ensure things were displaying properly
+- Worked on the listings page logic
+- Built Presentation

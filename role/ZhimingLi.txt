@@ -1,0 +1,7 @@
+Zhiming Li - Managing-Group / Database
+
+- Set up meeting time
+- Design SQL schema diagrams
+- Help with some functionality in code
+- Presentation
+- Populate data in database
